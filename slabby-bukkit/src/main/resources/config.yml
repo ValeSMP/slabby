@@ -11,10 +11,10 @@ database:
 
 # Defaults for new shops.
 defaults:
-  # Default buy price for new shops.
+  # Default buy price for new shops. Use -1 to disable buying by default
   buy-price: 0
-  # Default sell price for new shops.
-  sell-price: 0
+  # Default sell price for new shops. Use -1 to disable selling by default
+  sell-price: -1
   # Default quantity for new shops.
   quantity: 64
   # Default note for new shops.

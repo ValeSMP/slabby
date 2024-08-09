@@ -32,22 +32,25 @@ import java.util.ArrayList;
 public final class OwnerShopUI {
 
     public void open(final SlabbyAPI api, final Player shopOwner, final Shop shop) {
-        final var itemStack = api.serialization().<ItemStack>deserialize(shop.item());
+        final var item = api.serialization().<ItemStack>deserialize(shop.item());
         final var uniqueId = shopOwner.getUniqueId();
-        
+
+        if (item.getMaxStackSize() != 1)
+            item.setAmount(shop.quantity());
+
         final var gui = Gui.empty(9, 2);
 
         if (shop.stock() != null) {
             gui.setItem(0, 0, new SuppliedItem(itemStack(Material.CHEST_MINECART, (it, meta) -> {
-                meta.displayName(api.messages().owner().deposit().title(itemStack.displayName()));
+                meta.displayName(api.messages().owner().deposit().title(item.displayName()));
                 meta.lore(new ArrayList<>() {{
                     add(api.messages().owner().deposit().bulk());
                     add(api.messages().owner().stock(shop.stock()));
-                    add(api.messages().owner().stacks(shop.stock() / itemStack.getMaxStackSize()));
+                    add(api.messages().owner().stacks(shop.stock() / item.getMaxStackSize()));
                 }});
             }), c -> {
                 if (c.getEvent().isShiftClick()) {
-                    final var amount = ItemHelper.countSimilar(shopOwner.getInventory(), itemStack);
+                    final var amount = ItemHelper.countSimilar(shopOwner.getInventory(), item);
 
                     if (amount <= 0)
                         return api.exceptionService().tryCatch(uniqueId, () -> {
@@ -64,15 +67,15 @@ public final class OwnerShopUI {
             }));
 
             gui.setItem(1, 0, new SuppliedItem(itemStack(Material.HOPPER_MINECART, (it, meta) -> {
-                meta.displayName(api.messages().owner().withdraw().title(itemStack.displayName()));
+                meta.displayName(api.messages().owner().withdraw().title(item.displayName()));
                 meta.lore(new ArrayList<>() {{
                     add(api.messages().owner().withdraw().bulk());
                     add(api.messages().owner().stock(shop.stock()));
-                    add(api.messages().owner().stacks(shop.stock() / itemStack.getMaxStackSize()));
+                    add(api.messages().owner().stacks(shop.stock() / item.getMaxStackSize()));
                 }});
             }), c -> {
                 if (c.getEvent().isShiftClick()) {
-                    final var spaceLeft = ItemHelper.getSpace(shopOwner.getInventory(), itemStack);
+                    final var spaceLeft = ItemHelper.getSpace(shopOwner.getInventory(), item);
                     final var amount = Math.min(spaceLeft, shop.stock());
 
                     if (spaceLeft <= 0)
@@ -119,7 +122,7 @@ public final class OwnerShopUI {
             }).get(), c -> LogShopUI.open(api, shopOwner, shop)));
         });
 
-        gui.setItem(4, 0, new SimpleItem(new ItemBuilder(itemStack)));
+        gui.setItem(4, 0, new SimpleItem(item));
 
         api.permission().ifPermission(uniqueId, SlabbyPermissions.SHOP_LINK, () -> {
             if (shop.stock() == null)
@@ -155,7 +158,7 @@ public final class OwnerShopUI {
             }));
         });
 
-        gui.setItem(6, 0, commandBlock(api, shop, itemStack));
+        gui.setItem(6, 0, commandBlock(api, shop, item));
 
         gui.setItem(7, 0, new SimpleItem(itemStack(Material.COMPARATOR, (it, meta) -> {
             meta.displayName(api.messages().owner().modify().title());

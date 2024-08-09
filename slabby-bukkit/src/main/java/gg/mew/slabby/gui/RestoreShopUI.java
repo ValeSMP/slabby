@@ -34,14 +34,17 @@ public final class RestoreShopUI {
                 .stream()
                 .sorted(Comparator.comparing(Auditable::createdOn, Comparator.reverseOrder()))
                 .map(it -> {
-                    final var itemStack = api.serialization().<ItemStack>deserialize(it.item());
+                    final var item = api.serialization().<ItemStack>deserialize(it.item());
+
+                    if (item.getMaxStackSize() != 1)
+                        item.setAmount(it.quantity());
 
                     final var owners = it.owners()
                             .stream()
                             .map(i -> Bukkit.getOfflinePlayer(i.uniqueId()).getName())
                             .toArray(String[]::new);
 
-                    itemStack.lore(new ArrayList<>() {{
+                    item.lore(new ArrayList<>() {{
                         if (it.buyPrice() != null)
                             add(api.messages().restore().buyPrice(it.buyPrice()));
 
@@ -57,7 +60,7 @@ public final class RestoreShopUI {
                         add(api.messages().restore().owners(owners));
                     }});
 
-                    return (Item) new SimpleItem(itemStack, c -> {
+                    return (Item) new SimpleItem(item, c -> {
                         api.operations()
                                 .wizardOf(viewer.getUniqueId(), it)
                                 .state(Shop.State.ACTIVE)

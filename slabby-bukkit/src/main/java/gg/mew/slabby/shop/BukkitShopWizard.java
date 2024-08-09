@@ -50,9 +50,12 @@ public final class BukkitShopWizard implements ShopWizard {
         this.shop = null;
         this.id = null;
 
+        final var buyPrice = this.api.configuration().defaults().buyPrice();
+        final var sellPrice = this.api.configuration().defaults().sellPrice();
+
         this.note = this.api.configuration().defaults().note();
-        this.buyPrice = this.api.configuration().defaults().buyPrice();
-        this.sellPrice = this.api.configuration().defaults().sellPrice();
+        this.buyPrice = buyPrice == -1D ? null : buyPrice;
+        this.sellPrice = sellPrice == -1D ? null : sellPrice;
         this.quantity = this.api.configuration().defaults().quantity();
     }
 

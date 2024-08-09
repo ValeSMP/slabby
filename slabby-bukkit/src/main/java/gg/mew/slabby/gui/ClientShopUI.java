@@ -30,6 +30,9 @@ public final class ClientShopUI {
         final var item = api.serialization().<ItemStack>deserialize(shop.item());
         final var uniqueId = client.getUniqueId();
 
+        if (item.getMaxStackSize() != 1)
+            item.setAmount(shop.quantity());
+
         final var gui = Gui.empty(9, 1);
 
         if (shop.buyPrice() != null) {
