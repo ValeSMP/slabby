@@ -159,10 +159,10 @@ public final class SlabbyListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST)
+    @EventHandler(priority = EventPriority.LOWEST)
     private void onChatMessage(final AsyncChatEvent event) {
         api.operations().ifWizard(event.getPlayer().getUniqueId(), wizard -> {
-            if (!wizard.wizardState().awaitingTextInput())
+            if (wizard.wizardState() == null || !wizard.wizardState().awaitingTextInput())
                 return;
 
             final var serializer = PlainTextComponentSerializer.plainText();
