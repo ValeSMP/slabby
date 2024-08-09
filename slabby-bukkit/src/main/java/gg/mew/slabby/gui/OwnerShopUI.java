@@ -119,7 +119,7 @@ public final class OwnerShopUI {
             }).get(), c -> LogShopUI.open(api, shopOwner, shop)));
         });
 
-        gui.setItem(4, 0, new SimpleItem(new ItemBuilder(itemStack)));
+        gui.setItem(4, 0, new SimpleItem(itemStack));
 
         api.permission().ifPermission(uniqueId, SlabbyPermissions.SHOP_LINK, () -> {
             if (shop.stock() == null)

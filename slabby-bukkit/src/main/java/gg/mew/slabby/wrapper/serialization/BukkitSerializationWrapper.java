@@ -15,7 +15,8 @@ public final class BukkitSerializationWrapper implements SerializationWrapper {
 
     @Override
     public String serialize(final Object obj) throws SlabbyException {
-        if (obj instanceof ItemStack itemStack)
+        //NOTE: adds extra nbt tag for non-stackables, so only do this for stackables
+        if (obj instanceof ItemStack itemStack && itemStack.getMaxStackSize() != 1)
             itemStack.setAmount(1);
 
         final var byteArrayOutputStream = new ByteArrayOutputStream();

@@ -132,10 +132,14 @@ public final class SlabbyListener implements Listener {
     private void onInventoryClick(final InventoryClickEvent event) {
         api.operations().ifWizard(event.getWhoClicked().getUniqueId(), wizard -> {
             if (wizard.wizardState() == ShopWizard.WizardState.AWAITING_ITEM) {
-                final var item = Objects.requireNonNull(event.getCurrentItem());
+                final var item = event.getCurrentItem();
+
+                if (item == null)
+                    return;
 
                 wizard.wizardState(ShopWizard.WizardState.AWAITING_CONFIRMATION)
-                        .item(api.serialization().serialize(item.clone()));
+                        .item(api.serialization().serialize(item.clone()))
+                        .quantity(item.getMaxStackSize());
 
                 ModifyShopUI.open(api, (Player) event.getWhoClicked(), wizard);
 
