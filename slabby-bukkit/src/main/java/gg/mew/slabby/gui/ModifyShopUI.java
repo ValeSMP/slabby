@@ -29,7 +29,12 @@ public final class ModifyShopUI {
         final var uniqueId = shopOwner.getUniqueId();
         final var gui = Gui.empty(9, 1);
 
-        gui.setItem(0, 0, new SimpleItem(api.serialization().<ItemStack>deserialize(wizard.item())));
+        final var item = api.serialization().<ItemStack>deserialize(wizard.item());
+
+        if (item.getMaxStackSize() != 1)
+            item.setAmount(wizard.quantity());
+
+        gui.setItem(0, 0, new SimpleItem(item));
         gui.setItem(1, 0, new SimpleItem(itemStack(Material.NAME_TAG, (it, meta) -> {
             meta.displayName(api.messages().modify().note().title());
             meta.lore(new ArrayList<>() {{
