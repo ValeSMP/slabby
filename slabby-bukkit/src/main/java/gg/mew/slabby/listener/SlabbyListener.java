@@ -234,7 +234,7 @@ public final class SlabbyListener implements Listener {
 
         final var location = event.getDestination().getLocation();
 
-        if (location == null)
+        if (location == null || event.getDestination().getType() != InventoryType.CHEST)
             return;
 
         Optional<Shop> shopOpt = Optional.empty();
