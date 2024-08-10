@@ -37,7 +37,7 @@ public final class RestoreShopUI {
                     final var item = api.serialization().<ItemStack>deserialize(it.item());
 
                     if (item.getMaxStackSize() != 1)
-                        item.setAmount(it.quantity());
+                        item.setAmount(Math.max(1, Math.min(it.quantity(), item.getMaxStackSize())));
 
                     final var owners = it.owners()
                             .stream()

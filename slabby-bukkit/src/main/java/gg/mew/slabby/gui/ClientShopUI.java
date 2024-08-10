@@ -31,7 +31,7 @@ public final class ClientShopUI {
         final var uniqueId = client.getUniqueId();
 
         if (item.getMaxStackSize() != 1)
-            item.setAmount(shop.quantity());
+            item.setAmount(Math.max(1, Math.min(shop.quantity(), item.getMaxStackSize())));
 
         final var gui = Gui.empty(9, 1);
 

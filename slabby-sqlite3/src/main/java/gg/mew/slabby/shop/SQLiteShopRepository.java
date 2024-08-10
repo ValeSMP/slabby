@@ -10,6 +10,7 @@ import gg.mew.slabby.SlabbyAPI;
 import gg.mew.slabby.exception.SlabbyException;
 import gg.mew.slabby.exception.UnrecoverableException;
 import gg.mew.slabby.shop.log.ValueChanged;
+import lombok.Getter;
 
 import java.io.Closeable;
 import java.sql.SQLException;
@@ -23,6 +24,7 @@ public final class SQLiteShopRepository implements ShopRepository, Closeable {
 
     private final ConnectionSource connectionSource;
 
+    @Getter
     private final Dao<SQLiteShop, Integer> shopDao;
     private final Dao<SQLiteShopOwner, Integer> shopOwnerDao;
     private final Dao<SQLiteShopLog, Integer> shopLogDao;
