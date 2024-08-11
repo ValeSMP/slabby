@@ -1,5 +1,5 @@
 dependencies {
     implementation(project(":slabby-api"))
 
-    api(libs.bundles.sqlite)
+    implementation(libs.bundles.sqlite)
 }
