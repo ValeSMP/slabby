@@ -18,6 +18,7 @@ import org.bukkit.inventory.ItemStack;
 
 import java.awt.*;
 import java.sql.SQLException;
+import java.util.UUID;
 
 @RequiredArgsConstructor
 @CommandAlias("slabby")
@@ -44,11 +45,12 @@ public final class SlabbyCommand extends BaseCommand {
 
     @Subcommand("restore")
     @CommandPermission(SlabbyPermissions.SHOP_RESTORE)
-    private void onRestore(final Player player, final @Optional OfflinePlayer target) {
-        if (target != null && !player.hasPermission(SlabbyPermissions.ADMIN_RESTORE)) {
+    private void onRestore(final Player player, final @Optional String targetName) {
+        if (targetName != null && !player.hasPermission(SlabbyPermissions.ADMIN_RESTORE)) {
             player.sendMessage(Bukkit.permissionMessage());
         } else {
-            RestoreShopUI.open(api, player, target != null ? target.getUniqueId() : player.getUniqueId());
+            final var target = targetName != null ? Bukkit.getOfflinePlayer(targetName).getUniqueId() : player.getUniqueId();
+            RestoreShopUI.open(api, player, target);
         }
     }
 

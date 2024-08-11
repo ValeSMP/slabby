@@ -240,6 +240,7 @@ public final class SlabbyListener implements Listener {
         Optional<Shop> shopOpt = Optional.empty();
 
         try {
+            //TODO: cache
             shopOpt = api.repository().shopWithInventoryAt(location.getBlockX(), location.getBlockY(), location.getBlockZ(), location.getWorld().getName());
         } catch (final SlabbyException ignored) {}
 
