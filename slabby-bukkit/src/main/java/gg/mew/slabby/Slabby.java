@@ -77,6 +77,7 @@ import java.util.logging.Logger;
         @Permission(name = SlabbyPermissions.ADMIN_RELOAD, desc = "Allows admins to reload Slabby"),
         @Permission(name = SlabbyPermissions.ADMIN_TOGGLE, desc = "Allows admins to interact with any shop as if it was their own"),
         @Permission(name = SlabbyPermissions.ADMIN_IMPORT, desc = "Allows admins to import shops from other plugins"),
+        @Permission(name = SlabbyPermissions.ADMIN_RESTORE, desc = "Allows admins to restore shops from other players"),
 
         @Permission(name = SlabbyPermissions.SLABBO_MAPS_LOCATE_ITEM, desc = "Allows players to locate slabby items")
 })

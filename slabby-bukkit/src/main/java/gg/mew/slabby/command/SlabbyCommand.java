@@ -7,12 +7,17 @@ import gg.mew.slabby.gui.RestoreShopUI;
 import gg.mew.slabby.importer.ImportType;
 import gg.mew.slabby.importer.slabbo.SlabboImporter;
 import gg.mew.slabby.permission.SlabbyPermissions;
+import gg.mew.slabby.shop.SQLiteShopRepository;
+import gg.mew.slabby.shop.Shop;
 import lombok.RequiredArgsConstructor;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 
 import java.awt.*;
+import java.sql.SQLException;
 
 @RequiredArgsConstructor
 @CommandAlias("slabby")
@@ -42,9 +47,9 @@ public final class SlabbyCommand extends BaseCommand {
     private void onRestore(final Player player, final @Optional OfflinePlayer target) {
         if (target != null && !player.hasPermission(SlabbyPermissions.ADMIN_RESTORE)) {
             player.sendMessage(Bukkit.permissionMessage());
-            return;
+        } else {
+            RestoreShopUI.open(api, player, target != null ? target.getUniqueId() : player.getUniqueId());
         }
-        RestoreShopUI.open(api, player, target != null ? target.getUniqueId() : player.getUniqueId());
     }
 
     @Subcommand("import")

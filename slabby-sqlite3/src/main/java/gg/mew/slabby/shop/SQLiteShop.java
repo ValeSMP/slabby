@@ -4,6 +4,7 @@ import com.j256.ormlite.dao.ForeignCollection;
 import com.j256.ormlite.field.DatabaseField;
 import com.j256.ormlite.field.ForeignCollectionField;
 import com.j256.ormlite.table.DatabaseTable;
+import gg.mew.slabby.SlabbyHelper;
 import gg.mew.slabby.dao.ShopDao;
 import lombok.*;
 import lombok.experimental.Accessors;
@@ -124,6 +125,11 @@ public final class SQLiteShop implements Shop {
     @Override
     public boolean isOwner(final UUID uniqueId) {
         return this.owners.stream().anyMatch(it -> it.uniqueId().equals(uniqueId));
+    }
+
+    @Override
+    public String note() {
+        return this.note == null ? SlabbyHelper.api().configuration().defaults().note() : this.note;
     }
 
     public static final class SQLiteShopBuilder implements Shop.Builder {

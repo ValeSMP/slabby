@@ -31,7 +31,7 @@ public final class ClientShopUI {
         final var uniqueId = client.getUniqueId();
 
         if (item.getMaxStackSize() != 1)
-            item.setAmount(shop.quantity());
+            item.setAmount(Math.max(1, Math.min(shop.quantity(), item.getMaxStackSize())));
 
         final var gui = Gui.empty(9, 1);
 
@@ -52,7 +52,7 @@ public final class ClientShopUI {
             gui.setItem(1, 0, new SuppliedItem(itemStack(Material.IRON_INGOT, (it, meta) -> {
                 meta.displayName(api.messages().client().sell().title(item.displayName(), shop.quantity()));
                 meta.lore(new ArrayList<>() {{
-                    add(api.messages().client().sell().price(shop.buyPrice()));
+                    add(api.messages().client().sell().price(shop.sellPrice()));
                     if (shop.stock() != null) {
                         add(api.messages().client().sell().stock(shop.stock()));
                         add(api.messages().client().sell().stacks(shop.stock() / item.getMaxStackSize()));

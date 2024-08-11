@@ -153,16 +153,17 @@ public final class SlabbyListener implements Listener {
         if (event.getReason() == InventoryCloseEvent.Reason.PLAYER) {
             api.operations().ifWizard(event.getPlayer().getUniqueId(), wizard -> {
                 if (wizard.wizardState() == ShopWizard.WizardState.AWAITING_CONFIRMATION
-                        || wizard.wizardState() == ShopWizard.WizardState.AWAITING_ITEM)
-                    api.operations().wizards().remove(event.getPlayer().getUniqueId());
+                        || wizard.wizardState() == ShopWizard.WizardState.AWAITING_ITEM
+                        || wizard.wizardState() == null)
+                    api.operations().wizards().remove(event.getPlayer().getUniqueId()); //HOTFIX: wizard can get into an invalid state where state is null
             });
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST)
+    @EventHandler(priority = EventPriority.LOWEST)
     private void onChatMessage(final AsyncChatEvent event) {
         api.operations().ifWizard(event.getPlayer().getUniqueId(), wizard -> {
-            if (!wizard.wizardState().awaitingTextInput())
+            if (wizard.wizardState() == null || !wizard.wizardState().awaitingTextInput())
                 return;
 
             final var serializer = PlainTextComponentSerializer.plainText();
@@ -233,7 +234,7 @@ public final class SlabbyListener implements Listener {
 
         final var location = event.getDestination().getLocation();
 
-        if (location == null)
+        if (location == null || event.getDestination().getType() != InventoryType.CHEST)
             return;
 
         Optional<Shop> shopOpt = Optional.empty();

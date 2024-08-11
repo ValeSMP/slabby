@@ -32,7 +32,7 @@ public final class ModifyShopUI {
         final var item = api.serialization().<ItemStack>deserialize(wizard.item());
 
         if (item.getMaxStackSize() != 1)
-            item.setAmount(wizard.quantity());
+            item.setAmount(Math.max(1, Math.min(wizard.quantity(), item.getMaxStackSize())));
 
         gui.setItem(0, 0, new SimpleItem(item));
         gui.setItem(1, 0, new SimpleItem(itemStack(Material.NAME_TAG, (it, meta) -> {
