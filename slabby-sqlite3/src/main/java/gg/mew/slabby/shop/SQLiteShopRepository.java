@@ -24,7 +24,6 @@ public final class SQLiteShopRepository implements ShopRepository, Closeable {
 
     private final ConnectionSource connectionSource;
 
-    @Getter
     private final Dao<SQLiteShop, Integer> shopDao;
     private final Dao<SQLiteShopOwner, Integer> shopOwnerDao;
     private final Dao<SQLiteShopLog, Integer> shopLogDao;

@@ -61,7 +61,7 @@ public final class SlabboShop implements ConfigurationSerializable {
             return value == -1D ? null : value;
         });
 
-        result.quantity = (int) args.get("quantity");
+        result.quantity = Math.max((int) args.get("quantity"), 1);
 
         final var location = (Location) args.get("location");
 
@@ -82,7 +82,7 @@ public final class SlabboShop implements ConfigurationSerializable {
 
         result.uniqueId = UUID.fromString((String)args.get("ownerId"));
 
-        result.note = (String) args.getOrDefault("note", SlabbyHelper.api().configuration().defaults().note());
+        result.note = (String) args.compute("note", (k, v) -> v == null ? SlabbyHelper.api().configuration().defaults().note() : v);
 
         final var linkedChestLocation = (String) args.get("linkedChestLocation");
 
