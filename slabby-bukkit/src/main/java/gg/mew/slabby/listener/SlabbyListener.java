@@ -49,6 +49,9 @@ public final class SlabbyListener implements Listener {
         if (block == null || block.getType() == Material.AIR || event.getHand() != EquipmentSlot.HAND)
             return;
 
+        if (!BlockHelper.isSlabbyBlock(block))
+            return;
+
         final var uniqueId = player.getUniqueId();
 
         final int blockX = block.getX();
@@ -232,15 +235,16 @@ public final class SlabbyListener implements Listener {
         if (!restock.chests().enabled() || !restock.chests().hoppers().enabled())
             return;
 
-        final var location = event.getDestination().getLocation();
+        final var destination = event.getDestination();
 
-        if (location == null || event.getDestination().getType() != InventoryType.CHEST)
+        final var location = destination.getLocation();
+
+        if (location == null || destination.getType() != InventoryType.CHEST)
             return;
 
         Optional<Shop> shopOpt = Optional.empty();
 
         try {
-            //TODO: cache
             shopOpt = api.repository().shopWithInventoryAt(location.getBlockX(), location.getBlockY(), location.getBlockZ(), location.getWorld().getName());
         } catch (final SlabbyException ignored) {}
 
@@ -250,14 +254,22 @@ public final class SlabbyListener implements Listener {
             if (!itemStack.isSimilar(event.getItem()))
                 return;
 
-            shop.stock(shop.stock() + event.getItem().getAmount());
+            final var amount = Math.min(itemStack.getMaxStackSize(), shop.quantity());
 
-            try {
-                api.repository().update(shop);
+            if (destination.containsAtLeast(itemStack, amount)) {
+                shop.stock(shop.stock() + amount);
 
-                event.setItem(ItemStack.empty());
-            } catch (final SlabbyException e) {
-                api.exceptionService().logToConsole("Error while attempting to update shop from linked inventory", e);
+                try {
+                    api.repository().update(shop);
+                } catch (final SlabbyException e) {
+                    api.exceptionService().logToConsole("Error while attempting to update shop from linked inventory", e);
+                }
+
+                final var clone = itemStack.clone();
+
+                clone.setAmount(amount);
+
+                destination.remove(clone);
             }
         });
     }
