@@ -81,6 +81,9 @@ public final class BukkitSlabbyConfig implements SlabbyConfig {
                 @Comment("Hoppers can refill a linked chest.")
                 private boolean enabled;
 
+                @Comment("If true, items will be removed from the linked inventory in batches of shop quantity or the item's max quantity, whichever is less.")
+                private boolean batches;
+
             }
 
         }

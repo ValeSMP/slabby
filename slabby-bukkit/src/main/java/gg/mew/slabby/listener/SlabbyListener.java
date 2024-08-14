@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -30,6 +31,7 @@ import org.bukkit.inventory.ItemStack;
 import java.math.BigDecimal;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
 @RequiredArgsConstructor
@@ -52,83 +54,90 @@ public final class SlabbyListener implements Listener {
         if (!BlockHelper.isSlabbyBlock(block))
             return;
 
+        final var shopOpt = new AtomicReference<Optional<Shop>>();
+
+        final var blockX = block.getX();
+        final var blockY = block.getY();
+        final var blockZ = block.getZ();
+        final var blockWorld = block.getWorld().getName();
+
+        if (!api.exceptionService().tryCatch(event.getPlayer().getUniqueId(), () -> shopOpt.set(api.repository().shopAt(blockX, blockY, blockZ, blockWorld))))
+            return;
+
+        switch (event.getAction()) {
+            case RIGHT_CLICK_BLOCK -> onRightClick(event, shopOpt, player, block);
+            case LEFT_CLICK_BLOCK -> onLeftClick(event, shopOpt, player, block);
+        }
+    }
+
+    private void onLeftClick(final PlayerInteractEvent event, final AtomicReference<Optional<Shop>> shopOpt, final Player player, final Block block) {
         final var uniqueId = player.getUniqueId();
+
+        shopOpt.get().ifPresent(shop -> {
+            if (!shop.isOwner(uniqueId) && !api.isAdminMode(uniqueId) || shop.stock() == null)
+                return;
+
+            if (api.configuration().restock().punch().enabled()) {
+                if (api.configuration().restock().punch().shulker() && event.getItem() != null && event.getItem().getType() == Material.SHULKER_BOX) {
+                    api.exceptionService().tryCatch(uniqueId, () -> api.operations().deposit(uniqueId, shop, 1));
+                } else if (api.configuration().restock().punch().bulk())  {
+                    final var item = api.serialization().<ItemStack>deserialize(shop.item());
+
+                    final var quantity = player.isSneaking() ? ItemHelper.countSimilar(player.getInventory(), item) : shop.quantity();
+
+                    if (quantity > 0)
+                        api.exceptionService().tryCatch(uniqueId, () -> api.operations().deposit(uniqueId, shop, quantity));
+                }
+            }
+        });
+
+        api.operations().ifWizard(uniqueId, wizard -> {
+            if (wizard.wizardState() == ShopWizard.WizardState.AWAITING_INVENTORY_LINK) {
+                if (player.isSneaking() && BlockHelper.isInventoryAllowed(block)) {
+                    api.operations().linkShop(uniqueId, wizard, block.getX(), block.getY(), block.getZ(), block.getWorld().getName());
+                    //TODO: notify player
+                }
+            }
+        });
+    }
+
+    private void onRightClick(final PlayerInteractEvent event, final AtomicReference<Optional<Shop>> shopOpt, final Player player, final Block block) {
+        if (!BlockHelper.isShopAllowed(block))
+            return;
+
+        final var uniqueId = player.getUniqueId();
+        final var configurationItem = Bukkit.getItemFactory().createItemStack(api.configuration().item());
+        final var hasConfigurationItem = event.getItem() != null && event.getItem().isSimilar(configurationItem);
 
         final int blockX = block.getX();
         final int blockY = block.getY();
         final int blockZ = block.getZ();
         final String blockWorld = block.getWorld().getName();
 
-        final var shopOpt = new AtomicReference<Optional<Shop>>();
-
-        if (!api.exceptionService().tryCatch(uniqueId, () -> shopOpt.set(api.repository().shopAt(blockX, blockY, blockZ, blockWorld))))
-            return;
-
-        final var configurationItem = Bukkit.getItemFactory().createItemStack(api.configuration().item());
-        final var hasConfigurationItem = event.getItem() != null && event.getItem().isSimilar(configurationItem);
-
-        switch (event.getAction()) {
-            case RIGHT_CLICK_BLOCK -> {
-                shopOpt.get().ifPresentOrElse(shop -> {
-                    if (shop.isOwner(uniqueId) || api.isAdminMode(uniqueId)) {
-                        if (hasConfigurationItem) {
-                            DestroyShopUI.open(api, player, shop);
-                        } else {
-                            OwnerShopUI.open(api, player, shop);
-                        }
-                    } else {
-                        ClientShopUI.open(api, player, shop);
-                    }
-                }, () -> {
-                    final var canAccessClaim = api.claim() == null ||
-                            api.claim().canCreateShop(uniqueId,
-                                    blockX,
-                                    blockY,
-                                    blockZ,
-                                    event.getClickedBlock().getWorld().getName());
-
-                    if (canAccessClaim && hasConfigurationItem && BlockHelper.isShopAllowed(event.getClickedBlock())) {
-                        api.operations().ifWizardOrElse(uniqueId, w -> {
-                            if (w.wizardState() == ShopWizard.WizardState.AWAITING_LOCATION) {
-                                w.location(blockX, blockY, blockZ, blockWorld);
-                                w.wizardState(ShopWizard.WizardState.AWAITING_CONFIRMATION);
-                                api.sound().play(uniqueId, w.x(), w.y(), w.z(), w.world(), Sounds.MODIFY_SUCCESS);
-                                ModifyShopUI.open(api, player, w);
-                            }
-                        }, () -> api.permission().ifPermission(uniqueId, SlabbyPermissions.SHOP_MODIFY, () -> CreateShopUI.open(api, player, block)));
-                    }
-                });
+        shopOpt.get().ifPresentOrElse(shop -> {
+            if (shop.isOwner(uniqueId) || api.isAdminMode(uniqueId)) {
+                if (hasConfigurationItem) {
+                    DestroyShopUI.open(api, player, shop);
+                } else {
+                    OwnerShopUI.open(api, player, shop);
+                }
+            } else {
+                ClientShopUI.open(api, player, shop);
             }
-            case LEFT_CLICK_BLOCK -> {
-                shopOpt.get().ifPresent(shop -> {
-                    if (!shop.isOwner(uniqueId) && !api.isAdminMode(uniqueId) || shop.stock() == null)
-                        return;
+        }, () -> {
+            final var canAccessClaim = api.claim() == null || api.claim().canCreateShop(uniqueId, blockX, blockY, blockZ, blockWorld);
 
-                    if (api.configuration().restock().punch().enabled()) {
-                        if (api.configuration().restock().punch().shulker() && event.getItem() != null && event.getItem().getType() == Material.SHULKER_BOX) {
-                            api.exceptionService().tryCatch(uniqueId, () -> api.operations().deposit(uniqueId, shop, 1));
-                        } else if (api.configuration().restock().punch().bulk())  {
-                            final var item = api.serialization().<ItemStack>deserialize(shop.item());
-
-                            final var quantity = player.isSneaking()
-                                    ? ItemHelper.countSimilar(player.getInventory(), item)
-                                    : shop.quantity();
-
-                            if (quantity > 0)
-                                api.exceptionService().tryCatch(uniqueId, () -> api.operations().deposit(uniqueId, shop, quantity));
-                        }
+            if (canAccessClaim && hasConfigurationItem) {
+                api.operations().ifWizardOrElse(uniqueId, w -> {
+                    if (w.wizardState() == ShopWizard.WizardState.AWAITING_LOCATION) {
+                        w.location(blockX, blockY, blockZ, blockWorld);
+                        w.wizardState(ShopWizard.WizardState.AWAITING_CONFIRMATION);
+                        api.sound().play(uniqueId, w.x(), w.y(), w.z(), w.world(), Sounds.MODIFY_SUCCESS);
+                        ModifyShopUI.open(api, player, w);
                     }
-                });
-
-                api.operations().ifWizard(uniqueId, wizard -> {
-                    if (wizard.wizardState() == ShopWizard.WizardState.AWAITING_INVENTORY_LINK) {
-                        if (player.isSneaking() && BlockHelper.isInventoryAllowed(event.getClickedBlock())) {
-                            api.operations().linkShop(uniqueId, wizard, block.getX(), block.getY(), block.getZ(), block.getWorld().getName());
-                        }
-                    }
-                });
+                }, () -> api.permission().ifPermission(uniqueId, SlabbyPermissions.SHOP_MODIFY, () -> CreateShopUI.open(api, player, block)));
             }
-        }
+        });
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
@@ -246,7 +255,9 @@ public final class SlabbyListener implements Listener {
 
         try {
             shopOpt = api.repository().shopWithInventoryAt(location.getBlockX(), location.getBlockY(), location.getBlockZ(), location.getWorld().getName());
-        } catch (final SlabbyException ignored) {}
+        } catch (final SlabbyException e) {
+            api.exceptionService().logToConsole("Error while attempting to get shop for linked inventory", e);
+        }
 
         shopOpt.ifPresent(shop -> {
             final var itemStack = api.serialization().<ItemStack>deserialize(shop.item());
@@ -254,22 +265,33 @@ public final class SlabbyListener implements Listener {
             if (!itemStack.isSimilar(event.getItem()))
                 return;
 
-            final var amount = Math.min(itemStack.getMaxStackSize(), shop.quantity());
+            //TODO: ensure shop is not full, use same security measures as deposit function
 
-            if (destination.containsAtLeast(itemStack, amount)) {
-                shop.stock(shop.stock() + amount);
+            if (restock.chests().hoppers().batches() && itemStack.getMaxStackSize() > 1) {
+                final var amount = Math.min(itemStack.getMaxStackSize(), shop.quantity());
+
+                itemStack.setAmount(amount - 1);
+
+                if (destination.containsAtLeast(itemStack, itemStack.getAmount())) {
+                    shop.stock(shop.stock() + amount);
+
+                    try {
+                        api.repository().update(shop);
+                        event.setItem(ItemStack.empty());
+                        destination.remove(itemStack);
+                    } catch (final SlabbyException e) {
+                        api.exceptionService().logToConsole("Error while attempting to update shop from linked inventory", e);
+                    }
+                }
+            } else {
+                shop.stock(shop.stock() + event.getItem().getAmount());
 
                 try {
                     api.repository().update(shop);
+                    event.setItem(ItemStack.empty());
                 } catch (final SlabbyException e) {
                     api.exceptionService().logToConsole("Error while attempting to update shop from linked inventory", e);
                 }
-
-                final var clone = itemStack.clone();
-
-                clone.setAmount(amount);
-
-                destination.remove(clone);
             }
         });
     }
@@ -315,8 +337,6 @@ public final class SlabbyListener implements Listener {
         if (api.repository().isShopOrInventory(x, y, z, world))
             event.setCancelled(true);
     }
-
-    //TODO: N+1 problem. I should just use a query here
 
     @EventHandler(priority = EventPriority.HIGHEST)
     private void onBlockExplode(final BlockExplodeEvent event) {
