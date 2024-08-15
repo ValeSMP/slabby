@@ -5,7 +5,6 @@ import gg.mew.slabby.shop.SQLiteShop;
 import gg.mew.slabby.shop.Shop;
 
 import java.util.Objects;
-import java.util.Optional;
 
 public final class ShopCache extends DaoCache<SQLiteShop, Integer, Integer> {
 
@@ -13,7 +12,7 @@ public final class ShopCache extends DaoCache<SQLiteShop, Integer, Integer> {
         super(dao, SQLiteShop::id);
     }
 
-    private static int hash(final int x, final int y, final int z, final String world) {
+    public static int hash(final int x, final int y, final int z, final String world) {
         return Objects.hash(x, y, z, world);
     }
 
@@ -29,17 +28,12 @@ public final class ShopCache extends DaoCache<SQLiteShop, Integer, Integer> {
             this.store(shop.inventoryX(), shop.inventoryY(), shop.inventoryZ(), shop.inventoryWorld(), shop);
     }
 
-    public Optional<Shop> get(final int x, final int y, final int z, final String world) {
-        return get(hash(x, y, z, world)).map(it -> it);
+    public Cached get(final int x, final int y, final int z, final String world) {
+        return get(hash(x, y, z, world));
     }
 
-    public Optional<Boolean> exists(final int x, final int y, final int z, final String world) {
-        final var value = cache.get(hash(x, y, z, world));
-
-        if (value == null)
-            return Optional.empty();
-
-        return Optional.of(value.exists());
+    public void delete(final int x, final int y, final int z, final String world) {
+        this.delete(hash(x, y, z, world));
     }
 
 }

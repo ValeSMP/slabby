@@ -4,6 +4,7 @@ import gg.mew.slabby.audit.Auditable;
 import lombok.experimental.UtilityClass;
 
 import java.util.Collection;
+import java.util.Objects;
 import java.util.UUID;
 
 public interface Shop extends Auditable {
@@ -83,6 +84,16 @@ public interface Shop extends Auditable {
     void state(final State state);
 
     void inventory(final Integer x, final Integer y, final Integer z, final String world);
+
+    default boolean isAt(final int x, final int y, final int z, final String world) {
+        return this.state() == State.ACTIVE &&
+                Objects.equals(this.x(), x) && Objects.equals(this.y(), y) && Objects.equals(this.z(), z) && Objects.equals(this.world(), world);
+    }
+
+    default boolean isInventoryAt(final int inventoryX, final int inventoryY, final int inventoryZ, final String inventoryWorld) {
+        return this.state() == State.ACTIVE &&
+                Objects.equals(this.inventoryX(), inventoryX) && Objects.equals(this.inventoryY(), inventoryY) && Objects.equals(this.inventoryZ(), inventoryZ) && Objects.equals(this.inventoryWorld(), inventoryWorld);
+    }
 
     default boolean hasInventory() {
         return inventoryX() != null && inventoryY() != null && inventoryZ() != null && inventoryWorld() != null;

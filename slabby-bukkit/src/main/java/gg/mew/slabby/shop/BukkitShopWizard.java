@@ -75,6 +75,7 @@ public final class BukkitShopWizard implements ShopWizard {
         this.sellPrice = shop.sellPrice();
         this.quantity = shop.quantity();
         this.item = shop.item();
+        this.state = shop.state();
     }
 
     @Override
