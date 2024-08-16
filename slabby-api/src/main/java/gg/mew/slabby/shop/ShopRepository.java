@@ -11,6 +11,8 @@ public interface ShopRepository {
 
     <T> T builder(final Class<?> builderType);
 
+    Cache shopCache();
+
     void createOrUpdate(final Shop shop) throws SlabbyException;
     void createOrUpdate(final ShopOwner shopOwner) throws SlabbyException;
 

@@ -7,10 +7,9 @@ import com.j256.ormlite.misc.TransactionManager;
 import com.j256.ormlite.support.ConnectionSource;
 import com.j256.ormlite.table.TableUtils;
 import gg.mew.slabby.SlabbyAPI;
+import gg.mew.slabby.cache.ShopCache;
 import gg.mew.slabby.exception.SlabbyException;
 import gg.mew.slabby.exception.UnrecoverableException;
-import gg.mew.slabby.shop.log.ValueChanged;
-import lombok.Getter;
 
 import java.io.Closeable;
 import java.sql.SQLException;
@@ -28,6 +27,13 @@ public final class SQLiteShopRepository implements ShopRepository, Closeable {
     private final Dao<SQLiteShopOwner, Integer> shopOwnerDao;
     private final Dao<SQLiteShopLog, Integer> shopLogDao;
 
+    private final ShopCache shopCache;
+
+    @Override
+    public Cache shopCache() {
+        return this.shopCache;
+    }
+
     public SQLiteShopRepository(final SlabbyAPI api) throws SQLException {
         this.api = api;
 
@@ -36,6 +42,8 @@ public final class SQLiteShopRepository implements ShopRepository, Closeable {
         this.shopDao = DaoManager.createDao(this.connectionSource, SQLiteShop.class);
         this.shopOwnerDao = DaoManager.createDao(this.connectionSource, SQLiteShopOwner.class);
         this.shopLogDao = DaoManager.createDao(this.connectionSource, SQLiteShopLog.class);
+
+        this.shopCache = new ShopCache(this.shopDao);
     }
 
     public void initialize() throws SQLException {
@@ -76,6 +84,8 @@ public final class SQLiteShopRepository implements ShopRepository, Closeable {
         } catch (final SQLException e) {
             throw new UnrecoverableException("Error while inserting or updating shop", e);
         }
+
+        this.shopCache.store(shop);
     }
 
     @Override
@@ -85,6 +95,7 @@ public final class SQLiteShopRepository implements ShopRepository, Closeable {
         } catch (final SQLException e) {
             throw new UnrecoverableException("Error while deleting shop", e);
         }
+        //TODO: Remove from cache. When shops can actually be deleted in the future, we need to check if the result from the cache is not null.
     }
 
     @Override
@@ -112,6 +123,7 @@ public final class SQLiteShopRepository implements ShopRepository, Closeable {
         } catch (final SQLException e) {
             throw new UnrecoverableException("Error while updating shop", e);
         }
+        this.shopCache.store(shop);
     }
 
     @Override
@@ -143,6 +155,16 @@ public final class SQLiteShopRepository implements ShopRepository, Closeable {
 
     @Override
     public void markAsDeleted(final UUID uniqueId, final Shop shop) throws SlabbyException {
+        final var x = shop.x();
+        final var y = shop.y();
+        final var z = shop.z();
+        final var world = shop.world();
+
+        final var inventoryX = shop.inventoryX();
+        final var inventoryY = shop.inventoryY();
+        final var inventoryZ = shop.inventoryZ();
+        final var inventoryWorld = shop.inventoryWorld();
+
         shop.state(Shop.State.DELETED);
         shop.location(null, null, null, null);
 
@@ -163,10 +185,26 @@ public final class SQLiteShopRepository implements ShopRepository, Closeable {
 
             return null;
         });
+
+        this.shopCache.delete(x, y, z, world);
+        this.shopCache.delete(inventoryX, inventoryY, inventoryZ, inventoryWorld);
     }
 
     @Override
     public Optional<Shop> shopAt(final int x, final int y, final int z, final String world) throws SlabbyException {
+        final var cached = this.shopCache.get(x, y, z, world);
+
+        if (cached != null) {
+            if (cached.hasIdentity()) {
+                final var shop = cached.get();
+
+                //NOTE: Because the cache can return a shop by inventory or shop location, we need to check if this is actually the shop's location.
+                return shop.isAt(x, y, z, world) ? Optional.of(shop) : Optional.empty();
+            } else {
+                return Optional.empty();
+            }
+        }
+
         try {
             final var result = this.shopDao.queryBuilder()
                     .where()
@@ -180,6 +218,9 @@ public final class SQLiteShopRepository implements ShopRepository, Closeable {
                     .and()
                     .eq(Shop.Names.WORLD, world)
                     .queryForFirst();
+
+            this.shopCache.store(x, y, z, world, result);
+
             return Optional.ofNullable(result);
         } catch (final SQLException e) {
             throw new UnrecoverableException("Error while retrieving shop by location", e);
@@ -188,6 +229,19 @@ public final class SQLiteShopRepository implements ShopRepository, Closeable {
 
     @Override
     public Optional<Shop> shopWithInventoryAt(final int x, final int y, final int z, final String world) throws SlabbyException {
+        final var cached = this.shopCache.get(x, y, z, world);
+
+        if (cached != null) {
+            if (cached.hasIdentity()) {
+                final var shop = cached.get();
+
+                //NOTE: Because the cache can return a shop by inventory or shop location, we need to check if this is actually the inventory location
+                return shop.isInventoryAt(x, y, z, world) ? Optional.of(shop) : Optional.empty();
+            } else {
+                return Optional.empty();
+            }
+        }
+
         try {
             final var result = this.shopDao.queryBuilder()
                     .where()
@@ -201,6 +255,9 @@ public final class SQLiteShopRepository implements ShopRepository, Closeable {
                     .and()
                     .eq(Shop.Names.INVENTORY_WORLD, world)
                     .queryForFirst();
+
+            this.shopCache.store(x, y, z, world, result);
+
             return Optional.ofNullable(result);
         } catch (final SQLException e) {
             throw new UnrecoverableException("Error while retrieving shop by inventory location", e);
@@ -254,6 +311,18 @@ public final class SQLiteShopRepository implements ShopRepository, Closeable {
 
     @Override
     public boolean isShopOrInventory(final int x, final int y, final int z, final String world) throws SlabbyException {
+        final var cached = this.shopCache.get(x, y, z, world);
+
+        if (cached != null) {
+            if (cached.hasIdentity()) {
+                final var shop = cached.get();
+
+                return shop.isInventoryAt(x, y, z, world) || shop.isAt(x, y, z, world);
+            } else {
+                return false;
+            }
+        }
+
         try {
             final var where = this.shopDao.queryBuilder().where();
 
@@ -261,9 +330,11 @@ public final class SQLiteShopRepository implements ShopRepository, Closeable {
                     .and(where.eq(Shop.Names.STATE, Shop.State.ACTIVE), where.or(
                             where.and(where.eq(Shop.Names.INVENTORY_X, x), where.eq(Shop.Names.INVENTORY_Y, y), where.eq(Shop.Names.INVENTORY_Z, z), where.eq(Shop.Names.INVENTORY_WORLD, world)),
                             where.and(where.eq(Shop.Names.X, x), where.eq(Shop.Names.Y, y), where.eq(Shop.Names.Z, z), where.eq(Shop.Names.WORLD, world))))
-                    .countOf();
+                    .queryForFirst();
 
-            return result > 0;
+            this.shopCache.store(x, y, z, world, result);
+
+            return result != null;
         } catch (final SQLException e) {
             throw new UnrecoverableException("Error while checking if location is a shop or inventory", e);
         }
@@ -277,4 +348,5 @@ public final class SQLiteShopRepository implements ShopRepository, Closeable {
             throw new UnrecoverableException("Error while running transaction", e);
         }
     }
+
 }

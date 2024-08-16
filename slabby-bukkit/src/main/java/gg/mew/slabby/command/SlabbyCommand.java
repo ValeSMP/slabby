@@ -5,20 +5,10 @@ import co.aikar.commands.annotation.*;
 import gg.mew.slabby.SlabbyAPI;
 import gg.mew.slabby.gui.RestoreShopUI;
 import gg.mew.slabby.importer.ImportType;
-import gg.mew.slabby.importer.slabbo.SlabboImporter;
 import gg.mew.slabby.permission.SlabbyPermissions;
-import gg.mew.slabby.shop.SQLiteShopRepository;
-import gg.mew.slabby.shop.Shop;
 import lombok.RequiredArgsConstructor;
 import org.bukkit.Bukkit;
-import org.bukkit.OfflinePlayer;
-import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
-
-import java.awt.*;
-import java.sql.SQLException;
-
 @RequiredArgsConstructor
 @CommandAlias("slabby")
 public final class SlabbyCommand extends BaseCommand {
@@ -44,11 +34,12 @@ public final class SlabbyCommand extends BaseCommand {
 
     @Subcommand("restore")
     @CommandPermission(SlabbyPermissions.SHOP_RESTORE)
-    private void onRestore(final Player player, final @Optional OfflinePlayer target) {
-        if (target != null && !player.hasPermission(SlabbyPermissions.ADMIN_RESTORE)) {
+    private void onRestore(final Player player, final @Optional String targetName) {
+        if (targetName != null && !player.hasPermission(SlabbyPermissions.ADMIN_RESTORE)) {
             player.sendMessage(Bukkit.permissionMessage());
         } else {
-            RestoreShopUI.open(api, player, target != null ? target.getUniqueId() : player.getUniqueId());
+            final var target = targetName != null ? Bukkit.getOfflinePlayer(targetName).getUniqueId() : player.getUniqueId();
+            RestoreShopUI.open(api, player, target);
         }
     }
 

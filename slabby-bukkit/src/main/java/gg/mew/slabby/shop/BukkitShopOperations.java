@@ -373,6 +373,11 @@ public final class BukkitShopOperations implements ShopOperations {
                             .uniqueId(uniqueId)
                             .share(100)
                             .build());
+
+                    shop.logs().add(api.repository().<ShopLog.Builder>builder(ShopLog.Builder.class)
+                            .action(ShopLog.Action.SHOP_CREATED)
+                            .uniqueId(uniqueId).build());
+
                     return null;
                 });
             }

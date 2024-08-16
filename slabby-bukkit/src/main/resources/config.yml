@@ -38,3 +38,5 @@ restock:
     hoppers:
       # Hoppers can refill a linked chest.
       enabled: true
+      # If true, items will be removed from the linked inventory in batches of shop quantity or the item's max quantity, whichever is less.
+      batches: true

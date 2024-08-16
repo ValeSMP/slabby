@@ -54,6 +54,7 @@ public interface SlabbyConfig {
 
             interface Hoppers {
                 boolean enabled();
+                boolean batches();
             }
 
         }

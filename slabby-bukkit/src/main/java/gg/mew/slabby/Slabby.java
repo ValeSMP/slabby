@@ -54,6 +54,7 @@ import java.io.File;
 import java.nio.file.Path;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.logging.Logger;
@@ -179,6 +180,8 @@ public final class Slabby extends JavaPlugin implements SlabbyAPI {
         getServer().getPluginManager().registerEvents(new SlabboMapsListener(), this);
 
         getServer().getServicesManager().register(SlabbyAPI.class, this, this, ServicePriority.Highest);
+
+        getServer().getScheduler().scheduleSyncRepeatingTask(this, () -> this.repository.shopCache().expire(Duration.ofMinutes(1)), 20 * 60, 20 * 60);
     }
 
     private void addSlabboMapsCommand(final PaperCommandManager commandManager) {
