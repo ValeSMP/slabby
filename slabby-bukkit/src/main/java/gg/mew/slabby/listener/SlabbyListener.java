@@ -10,9 +10,7 @@ import gg.mew.slabby.permission.SlabbyPermissions;
 import gg.mew.slabby.shop.Shop;
 import gg.mew.slabby.shop.ShopWizard;
 import gg.mew.slabby.wrapper.sound.Sounds;
-import io.papermc.paper.event.player.AsyncChatEvent;
 import lombok.RequiredArgsConstructor;
-import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -24,6 +22,7 @@ import org.bukkit.event.block.*;
 import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.inventory.*;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
@@ -173,13 +172,13 @@ public final class SlabbyListener implements Listener {
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
-    private void onChatMessage(final AsyncChatEvent event) {
+    private void onChatMessage(final AsyncPlayerChatEvent event) {
+        // https://github.com/Aust1n46/VentureChat/issues/122
         api.operations().ifWizard(event.getPlayer().getUniqueId(), wizard -> {
             if (wizard.wizardState() == null || !wizard.wizardState().awaitingTextInput())
                 return;
 
-            final var serializer = PlainTextComponentSerializer.plainText();
-            final var text = serializer.serialize(event.message());
+            final var text = event.getMessage();
 
             try {
                 switch (wizard.wizardState()) {
