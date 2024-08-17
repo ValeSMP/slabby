@@ -1,9 +1,11 @@
 package gg.mew.slabby.wrapper.claim;
 
+import gg.mew.slabby.SlabbyHelper;
 import gg.mew.slabby.shop.Shop;
 import lombok.RequiredArgsConstructor;
 import me.angeschossen.lands.api.LandsIntegration;
 import me.angeschossen.lands.api.flags.type.Flags;
+import me.angeschossen.lands.api.land.ChunkCoordinate;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 
@@ -13,6 +15,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public final class LandsClaimWrapper implements ClaimWrapper {
 
+    private static final String LANDS_SHOPPING_DISTRICT_NAME = "spawn";
     private static final String LANDS_BLOCK_PLACE_BYPASS = "lands.bypass.block_place";
 
     private final LandsIntegration lands;
@@ -34,9 +37,6 @@ public final class LandsClaimWrapper implements ClaimWrapper {
 
     @Override
     public boolean isInShoppingDistrict(final Shop shop) {
-        if (this.lands == null)
-            return true;
-
         final var location = new Location(Bukkit.getWorld(shop.world()), shop.x(), shop.y(), shop.z());
         final var chunk = location.getChunk();
 
@@ -44,7 +44,13 @@ public final class LandsClaimWrapper implements ClaimWrapper {
         final var land = this.lands.getLandByUnloadedChunk(location.getWorld(), chunk.getX(), chunk.getZ());
 
         //TODO: Support shops outside of shopping district, different dimensions, etc...
-        return land != null && land.getName().equalsIgnoreCase("spawn");
+        return land != null && land.getName().equalsIgnoreCase(LANDS_SHOPPING_DISTRICT_NAME);
+    }
+
+    @Override
+    public Area getArea() {
+        final var config = SlabbyHelper.api().configuration().lands();
+        return new Area(config.minX(), config.minZ(), config.maxX(), config.maxZ(), config.world());
     }
 
 }
