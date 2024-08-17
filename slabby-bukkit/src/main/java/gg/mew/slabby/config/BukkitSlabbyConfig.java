@@ -25,7 +25,10 @@ public final class BukkitSlabbyConfig implements SlabbyConfig {
     @Comment("Options for restocking shops.")
     private BukkitRestock restock;
 
-    @Accessors(fluent = true)
+    @Comment("Options for lands")
+    private BukkitLands lands;
+
+    @Accessors(fluent = true, chain = false)
     @Getter
     @ConfigSerializable
     final static class BukkitDatabase implements Database {
@@ -35,7 +38,7 @@ public final class BukkitSlabbyConfig implements SlabbyConfig {
 
     }
 
-    @Accessors(fluent = true)
+    @Accessors(fluent = true, chain = false)
     @Getter
     @ConfigSerializable
     final static class BukkitRestock implements Restock {
@@ -106,6 +109,28 @@ public final class BukkitSlabbyConfig implements SlabbyConfig {
 
         @Comment("Default note for new shops.")
         private String note;
+
+    }
+
+    @Accessors(fluent = true, chain = false)
+    @Getter
+    @ConfigSerializable
+    final static class BukkitLands implements Lands {
+
+        @Comment("minX coordinate for area where slabbo-maps works")
+        private int minX;
+
+        @Comment("minZ coordinate for area where slabbo-maps works")
+        private int minZ;
+
+        @Comment("maxX coordinate for area where slabbo-maps works")
+        private int maxX;
+
+        @Comment("maxZ coordinate for area where slabbo-maps works")
+        private int maxZ;
+
+        @Comment("World for the area where slabbo-maps works")
+        private String world;
 
     }
 

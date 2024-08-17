@@ -10,4 +10,8 @@ public interface ClaimWrapper {
 
     boolean isInShoppingDistrict(final Shop shop);
 
+    Area getArea();
+
+    record Area(int minX, int minZ, int maxX, int maxZ, String world) {}
+
 }

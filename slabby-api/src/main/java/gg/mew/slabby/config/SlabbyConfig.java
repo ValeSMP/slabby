@@ -12,6 +12,8 @@ public interface SlabbyConfig {
 
     Restock restock();
 
+    Lands lands();
+
     interface Database {
 
         String url();
@@ -59,6 +61,14 @@ public interface SlabbyConfig {
 
         }
 
+    }
+
+    interface Lands {
+        int minX();
+        int maxX();
+        int minZ();
+        int maxZ();
+        String world();
     }
 
 }

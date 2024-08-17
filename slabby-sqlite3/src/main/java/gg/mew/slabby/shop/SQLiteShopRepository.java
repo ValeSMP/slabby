@@ -155,11 +155,13 @@ public final class SQLiteShopRepository implements ShopRepository, Closeable {
 
     @Override
     public void markAsDeleted(final UUID uniqueId, final Shop shop) throws SlabbyException {
+        final var hasLocation = shop.hasLocation();
         final var x = shop.x();
         final var y = shop.y();
         final var z = shop.z();
         final var world = shop.world();
 
+        final var hasInventory = shop.hasInventory();
         final var inventoryX = shop.inventoryX();
         final var inventoryY = shop.inventoryY();
         final var inventoryZ = shop.inventoryZ();
@@ -186,8 +188,11 @@ public final class SQLiteShopRepository implements ShopRepository, Closeable {
             return null;
         });
 
-        this.shopCache.delete(x, y, z, world);
-        this.shopCache.delete(inventoryX, inventoryY, inventoryZ, inventoryWorld);
+        if (hasLocation)
+            this.shopCache.delete(x, y, z, world);
+
+        if (hasInventory)
+            this.shopCache.delete(inventoryX, inventoryY, inventoryZ, inventoryWorld);
     }
 
     @Override
@@ -199,7 +204,11 @@ public final class SQLiteShopRepository implements ShopRepository, Closeable {
                 final var shop = cached.get();
 
                 //NOTE: Because the cache can return a shop by inventory or shop location, we need to check if this is actually the shop's location.
-                return shop.isAt(x, y, z, world) ? Optional.of(shop) : Optional.empty();
+                if (shop.isAt(x, y, z, world))
+                    return Optional.of(shop);
+
+                if (!shop.isInventoryAt(x, y, z, world))
+                    this.shopCache.delete(x, y, z, world);
             } else {
                 return Optional.empty();
             }
@@ -236,7 +245,12 @@ public final class SQLiteShopRepository implements ShopRepository, Closeable {
                 final var shop = cached.get();
 
                 //NOTE: Because the cache can return a shop by inventory or shop location, we need to check if this is actually the inventory location
-                return shop.isInventoryAt(x, y, z, world) ? Optional.of(shop) : Optional.empty();
+                if (shop.isInventoryAt(x, y, z, world)) {
+                    return Optional.of(shop);
+                }
+
+                if (!shop.isAt(x, y, z, world))
+                    this.shopCache.delete(x, y, z, world);
             } else {
                 return Optional.empty();
             }
@@ -306,6 +320,27 @@ public final class SQLiteShopRepository implements ShopRepository, Closeable {
             return (Collection<Shop>) (Collection<? extends Shop>) result;
         } catch (final SQLException e) {
             throw new UnrecoverableException("Error while retrieving shops by item", e);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public Collection<Shop> shopsInArea(final int minX, final int minZ, final int maxX, final int maxZ, final String world) {
+        try {
+            final var result = this.shopDao.queryBuilder()
+                    .where()
+                    .eq(Shop.Names.STATE, Shop.State.ACTIVE)
+                    .and()
+                    .eq(Shop.Names.WORLD, world)
+                    .and()
+                    .between(Shop.Names.X, minX, maxX)
+                    .and()
+                    .between(Shop.Names.Z, minZ, maxZ)
+                    .query();
+
+            return (Collection<Shop>) (Collection<? extends Shop>) result;
+        } catch (final SQLException e) {
+            throw new UnrecoverableException("Error while retrieving shops by area", e);
         }
     }
 

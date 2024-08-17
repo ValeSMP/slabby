@@ -40,3 +40,16 @@ restock:
       enabled: true
       # If true, items will be removed from the linked inventory in batches of shop quantity or the item's max quantity, whichever is less.
       batches: true
+
+# Options for lands
+lands:
+  # minX coordinate for area where slabbo-maps works
+  min-x: 0
+  # minZ coordinate for area where slabbo-maps works
+  min-z: 0
+  # maxX coordinate for area where slabbo-maps works
+  max-x: 0
+  # maxZ coordinate for area where slabbo-maps works
+  max-z: 0
+  # World for the area where slabbo-maps works
+  world: world

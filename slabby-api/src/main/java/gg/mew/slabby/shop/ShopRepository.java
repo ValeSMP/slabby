@@ -28,7 +28,7 @@ public interface ShopRepository {
     void markAsDeleted(final UUID uniqueId, final Shop shop) throws SlabbyException;
 
     <T> Optional<Shop> shopById(final T id) throws SlabbyException;
-
+    
     Optional<Shop> shopAt(final int x, final int y, final int z, final String world) throws SlabbyException;
 
     Optional<Shop> shopWithInventoryAt(final int x, final int y, final int z, final String world) throws SlabbyException;
@@ -36,6 +36,8 @@ public interface ShopRepository {
     Collection<Shop> shopsOf(final UUID uniqueId, final Shop.State state) throws SlabbyException;
 
     Collection<Shop> shopsByItem(final String item) throws SlabbyException;
+
+    Collection<Shop> shopsInArea(final int minX, final int minZ, final int maxX, final int maxZ, final String world);
 
     boolean isShopOrInventory(final int x, final int y, final int z, final String world) throws SlabbyException;
 

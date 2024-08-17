@@ -8,6 +8,7 @@ import gg.mew.slabby.helper.ItemHelper;
 import gg.mew.slabby.maps.OrderBy;
 import gg.mew.slabby.permission.SlabbyPermissions;
 import gg.mew.slabby.shop.Shop;
+import gg.mew.slabby.wrapper.claim.ClaimWrapper;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -60,28 +61,32 @@ public final class SlabboMapsCommand extends BaseCommand {
     @CommandPermission(SlabbyPermissions.SLABBO_MAPS_LOCATE_ITEM)
     @CommandCompletion("@items")
     public void onLocateItem(final Player player, final ItemStack itemStack, @Default("BuyAscending") final OrderBy orderBy) {
+        final var area = api.claim() == null
+                ? new ClaimWrapper.Area(Integer.MIN_VALUE, Integer.MIN_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, "world")
+                : api.claim().getArea();
+
         @SuppressWarnings("resource")
         final var shop = this.api
                 .repository()
-                .shopsByItem(api.serialization().serialize(itemStack))
+                .shopsInArea(area.minX(), area.minZ(), area.maxX(), area.maxZ(), area.world())
                 .stream()
                 .filter(orderBy)
-                .filter(it -> this.api.claim() == null || this.api.claim().isInShoppingDistrict(it))
+                .filter(it -> api.serialization().<ItemStack>deserialize(it.item()).isSimilar(itemStack))
                 .min(orderBy);
 
         if (shop.isPresent()) {
             final var success = giveCompass(player, shop.get());
 
             if (success) {
-                player.sendMessage(text("[SlabboMaps] You have received a compass that will lead the way to", NamedTextColor.GRAY)
+                player.sendMessage(text("[Slabby] You have received a compass that will lead the way to", NamedTextColor.GRAY)
                         .appendSpace()
                         .append(empty().color(NamedTextColor.YELLOW).append(text("[").append(translatable(itemStack.translationKey()).append(text("]")))).hoverEvent(itemStack))
                         .append(text(". You can drop the compass to remove it from your inventory.")));
             } else {
-                player.sendMessage(text("[SlabboMaps] You already have this compass or you have no inventory space.", NamedTextColor.GRAY));
+                player.sendMessage(text("[Slabby] You already have this compass or you have no inventory space.", NamedTextColor.GRAY));
             }
         } else {
-            player.sendMessage(text("[SlabboMaps]", NamedTextColor.GRAY)
+            player.sendMessage(text("[Slabby]", NamedTextColor.GRAY)
                     .appendSpace()
                     .append(text("[", NamedTextColor.YELLOW).append(translatable(itemStack.translationKey()).append(text("]"))).hoverEvent(itemStack))
                     .append(text(" is not available in any shop.")));

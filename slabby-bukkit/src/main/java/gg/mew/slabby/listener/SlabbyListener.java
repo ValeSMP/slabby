@@ -53,54 +53,56 @@ public final class SlabbyListener implements Listener {
         if (!BlockHelper.isSlabbyBlock(block))
             return;
 
-        final var shopOpt = new AtomicReference<Optional<Shop>>();
+        switch (event.getAction()) {
+            case RIGHT_CLICK_BLOCK -> onRightClick(event, player, block);
+            case LEFT_CLICK_BLOCK -> onLeftClick(event, player, block);
+        }
+    }
+
+    private void onLeftClick(final PlayerInteractEvent event, final Player player, final Block block) {
+        final var uniqueId = player.getUniqueId();
 
         final var blockX = block.getX();
         final var blockY = block.getY();
         final var blockZ = block.getZ();
         final var blockWorld = block.getWorld().getName();
 
-        if (!api.exceptionService().tryCatch(event.getPlayer().getUniqueId(), () -> shopOpt.set(api.repository().shopAt(blockX, blockY, blockZ, blockWorld))))
-            return;
+        if (BlockHelper.isShopAllowed(block)) {
+            final var shopOpt = new AtomicReference<Optional<Shop>>();
 
-        switch (event.getAction()) {
-            case RIGHT_CLICK_BLOCK -> onRightClick(event, shopOpt, player, block);
-            case LEFT_CLICK_BLOCK -> onLeftClick(event, shopOpt, player, block);
+            if (!api.exceptionService().tryCatch(uniqueId, () -> shopOpt.set(api.repository().shopAt(blockX, blockY, blockZ, blockWorld))))
+                return;
+
+            shopOpt.get().ifPresent(shop -> {
+                if (!shop.isOwner(uniqueId) && !api.isAdminMode(uniqueId) || shop.stock() == null)
+                    return;
+
+                if (api.configuration().restock().punch().enabled()) {
+                    if (api.configuration().restock().punch().shulker() && event.getItem() != null && event.getItem().getType() == Material.SHULKER_BOX) {
+                        api.exceptionService().tryCatch(uniqueId, () -> api.operations().deposit(uniqueId, shop, 1));
+                    } else if (api.configuration().restock().punch().bulk())  {
+                        final var item = api.serialization().<ItemStack>deserialize(shop.item());
+
+                        final var quantity = player.isSneaking() ? ItemHelper.countSimilar(player.getInventory(), item) : shop.quantity();
+
+                        if (quantity > 0)
+                            api.exceptionService().tryCatch(uniqueId, () -> api.operations().deposit(uniqueId, shop, quantity));
+                    }
+                }
+            });
+        } else if (BlockHelper.isInventoryAllowed(block)) {
+            api.operations().ifWizard(uniqueId, wizard -> {
+                if (wizard.wizardState() == ShopWizard.WizardState.AWAITING_INVENTORY_LINK) {
+                    if (player.isSneaking()) {
+                        api.operations().linkShop(uniqueId, wizard, blockX, blockY, blockZ, blockWorld);
+                        //TODO: notify player
+                    }
+                }
+            });
         }
     }
 
-    private void onLeftClick(final PlayerInteractEvent event, final AtomicReference<Optional<Shop>> shopOpt, final Player player, final Block block) {
-        final var uniqueId = player.getUniqueId();
-
-        shopOpt.get().ifPresent(shop -> {
-            if (!shop.isOwner(uniqueId) && !api.isAdminMode(uniqueId) || shop.stock() == null)
-                return;
-
-            if (api.configuration().restock().punch().enabled()) {
-                if (api.configuration().restock().punch().shulker() && event.getItem() != null && event.getItem().getType() == Material.SHULKER_BOX) {
-                    api.exceptionService().tryCatch(uniqueId, () -> api.operations().deposit(uniqueId, shop, 1));
-                } else if (api.configuration().restock().punch().bulk())  {
-                    final var item = api.serialization().<ItemStack>deserialize(shop.item());
-
-                    final var quantity = player.isSneaking() ? ItemHelper.countSimilar(player.getInventory(), item) : shop.quantity();
-
-                    if (quantity > 0)
-                        api.exceptionService().tryCatch(uniqueId, () -> api.operations().deposit(uniqueId, shop, quantity));
-                }
-            }
-        });
-
-        api.operations().ifWizard(uniqueId, wizard -> {
-            if (wizard.wizardState() == ShopWizard.WizardState.AWAITING_INVENTORY_LINK) {
-                if (player.isSneaking() && BlockHelper.isInventoryAllowed(block)) {
-                    api.operations().linkShop(uniqueId, wizard, block.getX(), block.getY(), block.getZ(), block.getWorld().getName());
-                    //TODO: notify player
-                }
-            }
-        });
-    }
-
-    private void onRightClick(final PlayerInteractEvent event, final AtomicReference<Optional<Shop>> shopOpt, final Player player, final Block block) {
+    private void onRightClick(final PlayerInteractEvent event, final Player player, final Block block) {
         if (!BlockHelper.isShopAllowed(block))
             return;
 
@@ -108,10 +110,15 @@ public final class SlabbyListener implements Listener {
         final var configurationItem = Bukkit.getItemFactory().createItemStack(api.configuration().item());
         final var hasConfigurationItem = event.getItem() != null && event.getItem().isSimilar(configurationItem);
 
-        final int blockX = block.getX();
-        final int blockY = block.getY();
-        final int blockZ = block.getZ();
-        final String blockWorld = block.getWorld().getName();
+        final var blockX = block.getX();
+        final var blockY = block.getY();
+        final var blockZ = block.getZ();
+        final var blockWorld = block.getWorld().getName();
+
+        final var shopOpt = new AtomicReference<Optional<Shop>>();
+
+        if (!api.exceptionService().tryCatch(event.getPlayer().getUniqueId(), () -> shopOpt.set(api.repository().shopAt(blockX, blockY, blockZ, blockWorld))))
+            return;
 
         shopOpt.get().ifPresentOrElse(shop -> {
             if (shop.isOwner(uniqueId) || api.isAdminMode(uniqueId)) {
