@@ -95,13 +95,12 @@ public final class BukkitShopOperations implements ShopOperations {
         if (!ItemHelper.hasSpace(client.getInventory(), itemStack, shop.quantity()))
             throw new PlayerOutOfInventorySpaceException();
 
-        if (shop.stock() != null)
+        if (shop.stock() != null) {
             shop.stock(shop.stock() - shop.quantity());
-
-        final var cost = splitCost(result.amount(), shop);
-
-        //NOTE: We don't really have a way to guarantee multiple deposits in a transaction like manner.
-        cost.forEach((key, value) -> api.economy().deposit(key, value));
+            final var cost = splitCost(result.amount(), shop);
+            //NOTE: We don't really have a way to guarantee multiple deposits in a transaction like manner.
+            cost.forEach((key, value) -> api.economy().deposit(key, value));
+        }
 
         api.repository().transaction(() -> {
             api.repository().update(shop);
@@ -156,10 +155,10 @@ public final class BukkitShopOperations implements ShopOperations {
 
         final var cost = splitCost(shop.sellPrice(), shop);
 
-        if (cost.entrySet().stream().anyMatch(it -> !api.economy().hasAmount(it.getKey(), it.getValue())))
-            throw new InsufficientBalanceToSellException();
-
         if (shop.stock() != null) {
+            if (cost.entrySet().stream().anyMatch(it -> !api.economy().hasAmount(it.getKey(), it.getValue())))
+                throw new InsufficientBalanceToSellException();
+
             try {
                 final var stock = Math.addExact(shop.stock(), shop.quantity());
 
@@ -186,8 +185,10 @@ public final class BukkitShopOperations implements ShopOperations {
             return null;
         });
 
-        //NOTE: We don't really have a way to guarantee multiple deposits in a transaction like manner.
-        cost.forEach((key, value) -> api.economy().withdraw(key, value));
+        if (shop.stock() != null) {
+            //NOTE: We don't really have a way to guarantee multiple deposits in a transaction like manner.
+            cost.forEach((key, value) -> api.economy().withdraw(key, value));
+        }
 
         api.economy().deposit(uniqueId, shop.sellPrice());
 
