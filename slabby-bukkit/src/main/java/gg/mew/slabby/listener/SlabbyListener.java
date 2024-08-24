@@ -24,13 +24,13 @@ import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.inventory.*;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerKickEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 
 import java.math.BigDecimal;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
 @RequiredArgsConstructor
@@ -135,12 +135,14 @@ public final class SlabbyListener implements Listener {
 
             if (canAccessClaim && hasConfigurationItem) {
                 api.operations().ifWizardOrElse(uniqueId, w -> {
+                    //NOTE: Restore/Shop moving
                     if (w.wizardState() == ShopWizard.WizardState.AWAITING_LOCATION) {
                         w.location(blockX, blockY, blockZ, blockWorld);
                         w.wizardState(ShopWizard.WizardState.AWAITING_CONFIRMATION);
                         api.sound().play(uniqueId, w.x(), w.y(), w.z(), w.world(), Sounds.MODIFY_SUCCESS);
                         ModifyShopUI.open(api, player, w);
                     }
+                    //TODO: else, remove wizard
                 }, () -> api.permission().ifPermission(uniqueId, SlabbyPermissions.SHOP_MODIFY, () -> CreateShopUI.open(api, player, block)));
             }
         });
@@ -229,6 +231,11 @@ public final class SlabbyListener implements Listener {
 
             event.setCancelled(true);
         });
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    private void onPlayerQuit(final PlayerQuitEvent event) {
+        api.operations().wizards().remove(event.getPlayer().getUniqueId());
     }
 
     private double getAndCheckPrice(final double price) {
