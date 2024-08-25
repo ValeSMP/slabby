@@ -24,7 +24,6 @@ import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.inventory.*;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.event.player.PlayerKickEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
@@ -134,16 +133,16 @@ public final class SlabbyListener implements Listener {
             final var canAccessClaim = api.claim() == null || api.claim().canCreateShop(uniqueId, blockX, blockY, blockZ, blockWorld);
 
             if (canAccessClaim && hasConfigurationItem) {
-                api.operations().ifWizardOrElse(uniqueId, w -> {
-                    //NOTE: Restore/Shop moving
-                    if (w.wizardState() == ShopWizard.WizardState.AWAITING_LOCATION) {
-                        w.location(blockX, blockY, blockZ, blockWorld);
-                        w.wizardState(ShopWizard.WizardState.AWAITING_CONFIRMATION);
-                        api.sound().play(uniqueId, w.x(), w.y(), w.z(), w.world(), Sounds.MODIFY_SUCCESS);
-                        ModifyShopUI.open(api, player, w);
-                    }
-                    //TODO: else, remove wizard
-                }, () -> api.permission().ifPermission(uniqueId, SlabbyPermissions.SHOP_MODIFY, () -> CreateShopUI.open(api, player, block)));
+                final var wizard = api.operations().wizards().get(uniqueId);
+
+                if (wizard != null && wizard.wizardState() == ShopWizard.WizardState.AWAITING_LOCATION) {
+                    wizard.location(blockX, blockY, blockZ, blockWorld);
+                    wizard.wizardState(ShopWizard.WizardState.AWAITING_CONFIRMATION);
+                    api.sound().play(uniqueId, wizard.x(), wizard.y(), wizard.z(), wizard.world(), Sounds.MODIFY_SUCCESS);
+                    ModifyShopUI.open(api, player, wizard);
+                } else if (api.permission().hasPermission(uniqueId, SlabbyPermissions.SHOP_MODIFY)) {
+                    CreateShopUI.open(api, player, block);
+                }
             }
         });
     }
@@ -172,10 +171,11 @@ public final class SlabbyListener implements Listener {
     private void onInventoryClose(final InventoryCloseEvent event) {
         if (event.getReason() == InventoryCloseEvent.Reason.PLAYER) {
             api.operations().ifWizard(event.getPlayer().getUniqueId(), wizard -> {
-                if (wizard.wizardState() == ShopWizard.WizardState.AWAITING_CONFIRMATION
-                        || wizard.wizardState() == ShopWizard.WizardState.AWAITING_ITEM
-                        || wizard.wizardState() == null)
-                    api.operations().wizards().remove(event.getPlayer().getUniqueId()); //HOTFIX: wizard can get into an invalid state where state is null
+                //NOTE: It seems that the wizard can get into an invalid state sometimes.
+                if (wizard.wizardState() == null
+                        || wizard.wizardState() == ShopWizard.WizardState.AWAITING_CONFIRMATION
+                        || wizard.wizardState() == ShopWizard.WizardState.AWAITING_ITEM)
+                    api.operations().wizards().remove(event.getPlayer().getUniqueId());
             });
         }
     }
