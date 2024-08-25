@@ -49,7 +49,7 @@ public final class SlabboImporter implements Importer {
 
                     shop.owners().add(owner);
 
-                    api.operations().removeAndSpawnDisplayItem(shop);
+                    api.operations().removeAndSpawnDisplayItem(null, null, null, null, shop);
 
                     api.repository().update(shop);
 

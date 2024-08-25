@@ -18,8 +18,10 @@ import org.bukkit.block.ShulkerBox;
 import org.bukkit.entity.*;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BlockStateMeta;
+import org.bukkit.util.NumberConversions;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 @RequiredArgsConstructor
@@ -329,6 +331,11 @@ public final class BukkitShopOperations implements ShopOperations {
 
     @Override
     public void createOrUpdateShop(final UUID uniqueId, final ShopWizard wizard) throws SlabbyException {
+        final var oldX = new AtomicReference<Integer>();
+        final var oldY = new AtomicReference<Integer>();
+        final var oldZ = new AtomicReference<Integer>();
+        final var oldWorld = new AtomicReference<String>();
+
         final var success = api.repository().transaction(() -> {
             final var shopOpt = api.repository().shopById(wizard.id());
 
@@ -340,6 +347,12 @@ public final class BukkitShopOperations implements ShopOperations {
                 shop.quantity(wizard.quantity());
                 shop.note(wizard.note());
                 shop.state(wizard.state());
+
+                //NOTE: We need these coordinates in case the chunk with the old display entity isn't loaded
+                oldX.set(shop.x());
+                oldY.set(shop.y());
+                oldZ.set(shop.z());
+                oldWorld.set(shop.world());
 
                 shop.location(wizard.x(), wizard.y(), wizard.z(), wizard.world());
 
@@ -392,7 +405,7 @@ public final class BukkitShopOperations implements ShopOperations {
             if (shopOpt.isPresent()) {
                 final var shop = shopOpt.get();
 
-                removeAndSpawnDisplayItem(shop);
+                removeAndSpawnDisplayItem(oldX.get(), oldY.get(), oldZ.get(), oldWorld.get(), shop);
 
                 api.repository().update(shop);
             }
@@ -410,16 +423,35 @@ public final class BukkitShopOperations implements ShopOperations {
     }
 
     @Override
-    public void removeAndSpawnDisplayItem(final Shop shop) {
+    public void removeAndSpawnDisplayItem(final Integer oldX, final Integer oldY, final Integer oldZ, final String oldWorld, final Shop shop) {
         final var item = api.serialization().<ItemStack>deserialize(shop.item());
-        final var world = Bukkit.getWorld(shop.world());
+        final var bukkitWorld = Bukkit.getWorld(shop.world());
 
-        if (shop.displayEntityId() != null && Bukkit.getEntity(shop.displayEntityId()) instanceof Display e)
-            e.remove();
+        if (shop.displayEntityId() != null && oldX != null && oldY != null && oldZ != null && oldWorld != null) {
+            final var chunkX = NumberConversions.floor(oldX) >> 4;
+            final var chunkZ = NumberConversions.floor(oldZ) >> 4;
+            final var chunkWorld = oldWorld.equals(shop.world()) ? bukkitWorld : Bukkit.getWorld(oldWorld);
+            final var isChunkLoaded = chunkWorld.isChunkLoaded(chunkX, chunkZ);
 
-        final var block = world.getBlockAt(shop.x(), shop.y(), shop.z());
+            try {
+                if (!isChunkLoaded)
+                    chunkWorld.loadChunk(chunkX, chunkZ, false);
 
-        final var itemDisplay = (ItemDisplay) world.spawnEntity(new Location(world, block.getBoundingBox().getCenterX(), block.getBoundingBox().getMaxY(), block.getBoundingBox().getCenterZ()), EntityType.ITEM_DISPLAY);
+                if (Bukkit.getEntity(shop.displayEntityId()) instanceof Display e) {
+                    e.remove();
+                } else {
+                    api.logger().warning("Unable to remove entity %s at %d,%d,%d,%s for shop %d".formatted(shop.displayEntityId(), oldX, oldY, oldZ, oldWorld, shop.<Integer>id()));
+                }
+            } finally {
+                //NOTE: Manually unload chunk if it wasn't loaded.
+                if (!isChunkLoaded)
+                    chunkWorld.unloadChunk(chunkX, chunkZ);
+            }
+        }
+
+        final var block = bukkitWorld.getBlockAt(shop.x(), shop.y(), shop.z());
+
+        final var itemDisplay = (ItemDisplay) bukkitWorld.spawnEntity(new Location(bukkitWorld, block.getBoundingBox().getCenterX(), block.getBoundingBox().getMaxY(), block.getBoundingBox().getCenterZ()), EntityType.ITEM_DISPLAY);
 
         itemDisplay.setBillboard(Display.Billboard.VERTICAL);
 
