@@ -32,7 +32,7 @@ public interface ShopOperations {
 
     void removeShop(final UUID uniqueId, final Shop shop) throws SlabbyException;
 
-    void removeAndSpawnDisplayItem(final Shop shop);
+    void removeAndSpawnDisplayItem(final Integer oldX, final Integer oldY, final Integer oldZ, final String oldWorld, final Shop shop);
 
 
 }
