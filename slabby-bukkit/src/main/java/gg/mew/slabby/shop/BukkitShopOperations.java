@@ -275,7 +275,10 @@ public final class BukkitShopOperations implements ShopOperations {
 
         Runnable removeItem;
 
-        if (!itemStack.isSimilar(itemInHand) && itemInHand.getItemMeta() instanceof BlockStateMeta meta && meta.getBlockState() instanceof ShulkerBox shulker) {
+        if (api.configuration().restock().punch().shulker()
+                && !itemStack.isSimilar(itemInHand)
+                && itemInHand.getItemMeta() instanceof BlockStateMeta meta
+                && meta.getBlockState() instanceof ShulkerBox shulker) {
             amount = ItemHelper.countSimilar(shulker.getInventory(), itemStack);
 
             if (amount == 0)
