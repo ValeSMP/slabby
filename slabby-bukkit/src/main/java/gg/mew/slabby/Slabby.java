@@ -59,7 +59,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.logging.Logger;
 
-@Plugin(name = "Slabby", version = "1.1.1")
+@Plugin(name = "Slabby", version = "1.1.2")
 @ApiVersion(ApiVersion.Target.v1_20)
 @DependsOn(value = {
         @Dependency("Vault")
