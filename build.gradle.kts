@@ -6,7 +6,7 @@ plugins {
 subprojects {
     apply(plugin = "java-library")
 
-    group = "gg.mew.slabby"
+    group = "com.valesmp.slabby"
     version = providers.gradleProperty("slabby_version").get()
 
     dependencies {

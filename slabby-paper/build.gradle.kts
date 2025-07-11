@@ -2,15 +2,22 @@ plugins {
     alias(libs.plugins.shadow)
 }
 
+//TODO: Compile error due to bukkit dependency
 dependencies {
     compileOnly(libs.paper)
 
-    compileOnly(libs.plugin.annotations)
-    annotationProcessor(libs.plugin.annotations)
+    compileOnly(libs.plugin.annotations) {
+        isTransitive = false
+    }
+    annotationProcessor(libs.plugin.annotations) {
+        isTransitive = false
+    }
 
     implementation(libs.acf.paper)
 
-    compileOnly(libs.vault)
+    compileOnly(libs.vault) {
+        isTransitive = false
+    }
 
     implementation(libs.configurate.yaml)
 
