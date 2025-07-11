@@ -14,33 +14,19 @@ import java.util.Base64;
 public final class BukkitSerializationWrapper implements SerializationWrapper {
 
     @Override
-    public String serialize(final Object obj) throws SlabbyException {
-        //NOTE: adds extra nbt tag for non-stackables, so only do this for stackables
-        if (obj instanceof ItemStack itemStack && itemStack.getMaxStackSize() != 1)
-            itemStack.setAmount(1);
+    public String serialize(final Object item) throws SlabbyException {
+        if (!(item instanceof ItemStack itemStack))
+            throw new UnrecoverableException("Object is not an instance of ItemStack");
 
-        final var byteArrayOutputStream = new ByteArrayOutputStream();
-        try {
-            try (final var bukkitObjectOutputStream = new BukkitObjectOutputStream(byteArrayOutputStream)) {
-                bukkitObjectOutputStream.writeObject(obj);
-            }
-            return Base64.getEncoder().encodeToString(byteArrayOutputStream.toByteArray());
-        } catch (final IOException e) {
-            throw new UnrecoverableException("Error while attempting to serialize item", e);
-        }
+        itemStack.setAmount(1);
+
+        return Base64.getEncoder().encodeToString(itemStack.serializeAsBytes());
     }
 
-    @SuppressWarnings("unchecked")
     @Override
-    public <T> T deserialize(final String obj) throws SlabbyException {
-        final var byteArrayInputStream = new ByteArrayInputStream(Base64.getDecoder().decode(obj));
-        try {
-            try (final var bukkitObjectInputStream = new BukkitObjectInputStream(byteArrayInputStream)) {
-                return (T) bukkitObjectInputStream.readObject();
-            }
-        } catch (final IOException | ClassNotFoundException e) {
-            throw new UnrecoverableException("Error while attempting to deserialize item", e);
-        }
+    public <T> T deserialize(final String item) throws SlabbyException {
+        //noinspection unchecked
+        return (T) ItemStack.deserializeBytes(Base64.getDecoder().decode(item));
     }
 
 }

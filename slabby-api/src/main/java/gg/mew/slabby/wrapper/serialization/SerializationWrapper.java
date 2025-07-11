@@ -4,10 +4,8 @@ import gg.mew.slabby.exception.SlabbyException;
 
 public interface SerializationWrapper {
 
-    //TODO: catch these slabby exceptions
+    String serialize(final Object item) throws SlabbyException;
 
-    String serialize(final Object obj) throws SlabbyException;
-
-    <T> T deserialize(final String obj) throws SlabbyException;
+    <T> T deserialize(final String item) throws SlabbyException;
 
 }
