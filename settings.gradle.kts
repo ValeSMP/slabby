@@ -1,6 +1,6 @@
 rootProject.name = "slabby"
 
-include("slabby-api", "slabby-sqlite3", "slabby-bukkit")
+include("slabby-api", "slabby-sqlite3", "slabby-paper")
 
 dependencyResolutionManagement {
     @Suppress("UnstableApiUsage")

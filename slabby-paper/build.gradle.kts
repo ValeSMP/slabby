@@ -26,7 +26,7 @@ dependencies {
 
 tasks.shadowJar {
 
-    archiveFileName = "slabby-bukkit-${providers.gradleProperty("minecraft_version").get()}-${project.version}.jar"
+    archiveFileName = "slabby-paper-${providers.gradleProperty("minecraft_version").get()}-${project.version}.jar"
 }
 
 tasks.build {
