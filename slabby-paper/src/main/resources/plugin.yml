@@ -1,0 +1,68 @@
+name: Slabby
+version: 1.2.0
+main: com.valesmp.slabby.Slabby
+api-version: '1.20'
+author: ValesSMP
+description: A shop plugin for Paper servers
+website: https://github.com/ValeSMP/slabby
+
+depend:
+  - Vault
+
+softdepend:
+  - Lands
+
+commands:
+  slabby:
+    description: Slabby's command for everything
+    usage: /slabby
+    permission: slabby
+
+permissions:
+  slabby:
+    description: Access to Slabby commands
+    default: true
+  
+  slabby.shop.interact:
+    description: Allows for interacting with shops
+    default: true
+  
+  slabby.shop.modify:
+    description: Allows for creation, modification and deletion of new shops
+    default: true
+  
+  slabby.shop.link:
+    description: Allows for linking inventories to shops
+    default: true
+  
+  slabby.shop.notify:
+    description: Allows shop owners to receive notifications
+    default: true
+  
+  slabby.shop.logs:
+    description: Allows shop owners to view their shop logs
+    default: true
+  
+  slabby.shop.restore:
+    description: Allows shop owners to restore their deleted shops
+    default: true
+  
+  slabby.admin.reload:
+    description: Allows admins to reload Slabby
+    default: op
+  
+  slabby.admin.toggle:
+    description: Allows admins to interact with any shop as if it was their own
+    default: op
+  
+  slabby.admin.import:
+    description: Allows admins to import shops from other plugins
+    default: op
+  
+  slabby.admin.restore:
+    description: Allows admins to restore shops from other players
+    default: op
+  
+  slabby.locate.item:
+    description: Allows players to locate slabby shops
+    default: true

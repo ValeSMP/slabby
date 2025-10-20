@@ -1,17 +1,11 @@
 plugins {
+    `java-library`
     alias(libs.plugins.shadow)
 }
 
 //TODO: Compile error due to bukkit dependency
 dependencies {
     compileOnly(libs.paper)
-
-    compileOnly(libs.plugin.annotations) {
-        isTransitive = false
-    }
-    annotationProcessor(libs.plugin.annotations) {
-        isTransitive = false
-    }
 
     implementation(libs.acf.paper)
 
@@ -46,5 +40,7 @@ tasks.jar {
 
 tasks.compileJava {
     options.compilerArgs.add("-parameters")
-    options.isFork = true
+    options.isFork = false
 }
+
+version = providers.gradleProperty("slabby_version").get()

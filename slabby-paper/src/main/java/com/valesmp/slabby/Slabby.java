@@ -37,13 +37,6 @@ import org.bukkit.event.HandlerList;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.plugin.java.annotation.command.Command;
-import org.bukkit.plugin.java.annotation.command.Commands;
-import org.bukkit.plugin.java.annotation.dependency.*;
-import org.bukkit.plugin.java.annotation.permission.Permission;
-import org.bukkit.plugin.java.annotation.permission.Permissions;
-import org.bukkit.plugin.java.annotation.plugin.ApiVersion;
-import org.bukkit.plugin.java.annotation.plugin.Plugin;
 import org.spongepowered.configurate.ConfigurateException;
 import org.spongepowered.configurate.yaml.YamlConfigurationLoader;
 import com.valesmp.slabby.importer.slabbo.SlabboShop;
@@ -56,32 +49,6 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.logging.Logger;
 
-@Plugin(name = "Slabby", version = "1.1.2")
-@ApiVersion(ApiVersion.Target.v1_20)
-@DependsOn(value = {
-        @Dependency("Vault")
-})
-@SoftDependsOn(value = {
-        @SoftDependency("Lands")
-})
-@Permissions(value = {
-        @Permission(name = SlabbyPermissions.SHOP_INTERACT, desc = "Allows for interacting with shops"),
-        @Permission(name = SlabbyPermissions.SHOP_MODIFY, desc = "Allows for creation, modification and deletion of new shops"),
-        @Permission(name = SlabbyPermissions.SHOP_LINK, desc = "Allows for linking inventories to shops"),
-        @Permission(name = SlabbyPermissions.SHOP_NOTIFY, desc = "Allows shop owners to receive notifications"),
-        @Permission(name = SlabbyPermissions.SHOP_LOGS, desc = "Allows shop owners to view their shop logs"),
-        @Permission(name = SlabbyPermissions.SHOP_RESTORE, desc = "Allows shop owners to restore their deleted shops"),
-
-        @Permission(name = SlabbyPermissions.ADMIN_RELOAD, desc = "Allows admins to reload Slabby"),
-        @Permission(name = SlabbyPermissions.ADMIN_TOGGLE, desc = "Allows admins to interact with any shop as if it was their own"),
-        @Permission(name = SlabbyPermissions.ADMIN_IMPORT, desc = "Allows admins to import shops from other plugins"),
-        @Permission(name = SlabbyPermissions.ADMIN_RESTORE, desc = "Allows admins to restore shops from other players"),
-
-        @Permission(name = SlabbyPermissions.LOCATE_ITEM, desc = "Allows players to locate slabby shops")
-})
-@Commands(value = {
-        @Command(name = "slabby", desc = "Slabby's command for everything", permission = "slabby"),
-})
 @Accessors(fluent = true)
 public final class Slabby extends JavaPlugin implements SlabbyAPI {
 
