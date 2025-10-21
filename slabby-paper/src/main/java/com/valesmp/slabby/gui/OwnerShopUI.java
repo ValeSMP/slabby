@@ -12,15 +12,22 @@ import com.valesmp.slabby.shop.ShopWizard;
 import com.valesmp.slabby.wrapper.sound.Sounds;
 import dev.hxrry.hxgui.builders.GUIBuilder;
 import dev.hxrry.hxgui.builders.ItemBuilder;
+import dev.hxrry.hxgui.core.Menu;
 import lombok.experimental.UtilityClass;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 
 // 1.1 > 1.2 changes: removed supplied items as items are now created on demand with helper methods
@@ -29,6 +36,22 @@ import java.util.List;
 
 @UtilityClass
 public final class OwnerShopUI {
+
+    //temp getaround until i update hxgui
+    private final Map<UUID, MenuContext> openMenus = new HashMap<>();
+
+    //temp getaround until i update hxgui
+    private static class MenuContext {
+        final Menu menu;
+        final Shop shop;
+        final ItemStack shopItem;
+
+        MenuContext(Menu menu, Shop shop, ItemStack shopItem) {
+            this.menu = menu;
+            this.shop = shop;
+            this.shopItem = shopItem;
+        }
+    }
 
     public void open(final SlabbyAPI api, final Player shopOwner, final Shop shop) {
         final var item = api.serialization().<ItemStack>deserialize(shop.item());
@@ -52,10 +75,14 @@ public final class OwnerShopUI {
                         return;
                     }
                     api.exceptionService().tryCatch(uniqueId, () -> api.operations().deposit(uniqueId, shop, amount));
+                    //temp getaround until i update hxgui
+                    refreshStockDisplay(api, shopOwner, uniqueId);
                 } else {
                     final var wizard = api.operations().wizards().get(uniqueId);
                     final var amount = wizard != null ? wizard.quantity() : shop.quantity();
                     api.exceptionService().tryCatch(uniqueId, () -> api.operations().deposit(uniqueId, shop, amount));
+                    //temp getaround until i update hxgui
+                    refreshStockDisplay(api, shopOwner, uniqueId);
                 }
             });
 
@@ -74,10 +101,14 @@ public final class OwnerShopUI {
                         return;
                     }
                     api.exceptionService().tryCatch(uniqueId, () -> api.operations().withdraw(uniqueId, shop, amount));
+                    //temp getaround until i update hxgui
+                    refreshStockDisplay(api, shopOwner, uniqueId);
                 } else {
                     final var wizard = api.operations().wizards().get(uniqueId);
                     final var amount = wizard != null ? wizard.quantity() : shop.quantity();
                     api.exceptionService().tryCatch(uniqueId, () -> api.operations().withdraw(uniqueId, shop, amount));
+                    //temp getaround until i update hxgui
+                    refreshStockDisplay(api, shopOwner, uniqueId);
                 }
             });
 
@@ -100,6 +131,8 @@ public final class OwnerShopUI {
                 builder.item(5, createInventoryLinkItem(api, shop), event -> {
                     if (shop.hasInventory()) {
                         api.exceptionService().tryCatch(uniqueId, () -> api.operations().unlinkShop(uniqueId, shop));
+                        //temp getaround until i update hxgui
+                        refreshInventoryLinkButton(api, shopOwner, uniqueId);
                     } else {
                         api.operations()
                                 .wizardOf(uniqueId, shop)
@@ -138,9 +171,42 @@ public final class OwnerShopUI {
                     .build(), event -> LogShopUI.open(api, shopOwner, shop));
         });
 
-        // schedule open on main thread (same as original)
-        Bukkit.getScheduler().runTask((Slabby) api, () -> builder.open(shopOwner));
+        final var menu = builder.build();
+        openMenus.put(uniqueId, new MenuContext(menu, shop, item)); // Store before opening!
+        Bukkit.getScheduler().runTask((Slabby) api, () -> menu.open(shopOwner));
     }
+
+    // temp: smooth refresh of stock-related items only
+    private void refreshStockDisplay(final SlabbyAPI api, final Player player, final UUID uniqueId) {
+        final var context = openMenus.get(uniqueId);
+        if (context == null) return;
+
+        api.repository().refresh(context.shop);
+
+        final Inventory inv = context.menu.getInventory(player);
+
+        inv.setItem(0, createDepositItem(api, context.shop, context.shopItem));   // chest minecart
+        inv.setItem(1, createWithdrawItem(api, context.shop, context.shopItem));  // hopper minecart  
+        inv.setItem(2, createChangeRateItem(api, uniqueId, context.shop));        // rate minecart
+    }
+
+    private void refreshInventoryLinkButton(final SlabbyAPI api, final Player player, final UUID uniqueId) {
+        final var context = openMenus.get(uniqueId);
+        if (context == null) return;
+
+        api.repository().refresh(context.shop);
+
+        final Inventory inv = context.menu.getInventory(player);
+        inv.setItem(5, createInventoryLinkItem(api, context.shop)); // inventory link button
+    }
+
+    public void onClose(final UUID uniqueId) {
+        openMenus.remove(uniqueId);
+    }
+
+    // ----------------------------------
+    // HELPER METHODS - NICE AND CLEAN :D
+    // ----------------------------------
 
     // helper: create deposit item
     private ItemStack createDepositItem(final SlabbyAPI api, final Shop shop, final ItemStack item) {
@@ -148,11 +214,17 @@ public final class OwnerShopUI {
                 .name(api.messages().owner().deposit().title(item.displayName()))
                 .build();
         final var meta = depositItem.getItemMeta();
-        meta.lore(List.of(
-                api.messages().owner().deposit().bulk(),
-                api.messages().owner().stock(shop.stock()),
-                api.messages().owner().stacks(shop.stock() / item.getMaxStackSize())
-        ));
+        
+        final List<Component> lore = new ArrayList<>();
+        lore.add(api.messages().owner().deposit().bulk());
+        lore.add(api.messages().owner().stock(shop.stock()));
+        lore.add(api.messages().owner().stacks(shop.stock() / item.getMaxStackSize()));
+        
+        if (shop.stock() == null) {
+            lore.add(Component.text("⚡ ADMIN SHOP - INFINITE STOCK ⚡", NamedTextColor.GOLD));
+        }
+
+        meta.lore(lore);
         depositItem.setItemMeta(meta);
         return depositItem;
     }
@@ -163,11 +235,17 @@ public final class OwnerShopUI {
                 .name(api.messages().owner().withdraw().title(item.displayName()))
                 .build();
         final var meta = withdrawItem.getItemMeta();
-        meta.lore(List.of(
-                api.messages().owner().withdraw().bulk(),
-                api.messages().owner().stock(shop.stock()),
-                api.messages().owner().stacks(shop.stock() / item.getMaxStackSize())
-        ));
+        
+        final List<Component> lore = new ArrayList<>();
+        lore.add(api.messages().owner().withdraw().bulk());
+        lore.add(api.messages().owner().stock(shop.stock()));
+        lore.add(api.messages().owner().stacks(shop.stock() / item.getMaxStackSize()));
+
+        if (shop.stock() == null) {
+            lore.add(Component.text("⚡ ADMIN SHOP - INFINITE STOCK ⚡", NamedTextColor.GOLD));
+        }
+
+        meta.lore(lore);
         withdrawItem.setItemMeta(meta);
         return withdrawItem;
     }
@@ -222,6 +300,11 @@ public final class OwnerShopUI {
         if (shop.sellPrice() != null) {
             final var sellPriceEach = shop.sellPrice() == 0 ? 0 : shop.sellPrice() / shop.quantity();
             lore.add(api.messages().commandBlock().sellPrice(shop.quantity(), shop.sellPrice(), sellPriceEach));
+        }
+
+        if (shop.stock() == null) {
+            lore.add(Component.empty());
+            lore.add(Component.text("⚡ ADMIN SHOP - INFINITE STOCK ⚡", NamedTextColor.GOLD));
         }
 
         final var commandBlock = ItemBuilder.of(Material.COMMAND_BLOCK)

@@ -186,6 +186,8 @@ public final class SlabbyListener implements Listener {
                         || wizard.wizardState() == ShopWizard.WizardState.AWAITING_ITEM)
                     api.operations().wizards().remove(event.getPlayer().getUniqueId());
             });
+
+            OwnerShopUI.onClose(event.getPlayer().getUniqueId());
         }
     }
 
