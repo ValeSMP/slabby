@@ -7,20 +7,37 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
 import org.bukkit.Bukkit;
 
 import dev.hxrry.hxgui.builders.GUIBuilder;
 import dev.hxrry.hxgui.builders.ItemBuilder;
+import dev.hxrry.hxgui.core.Menu;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 // changes 1.1 > 1.2 removed autoupdate, TODO: reintroduce it
 // also removed supplieditem and used regular items with click handlers instead, added conditional button creation into this menu and helper methods because OCD
 @UtilityClass
 public final class ClientShopUI {
+
+    //temp
+    private final Map<UUID, MenuContext> openMenus = new HashMap<>();
+
+    //temp
+    private static class MenuContext {
+        final Menu menu;
+
+        MenuContext(Menu menu) {
+            this.menu = menu;
+        }
+    }
 
     public void open(final SlabbyAPI api, final Player client, final Shop shop) {
         final var item = api.serialization().<ItemStack>deserialize(shop.item());
@@ -51,9 +68,12 @@ public final class ClientShopUI {
             buyMeta.lore(buyLore);
             buyButton.setItemMeta(buyMeta);
 
-            builder.item(0, buyButton, event -> 
-                api.exceptionService().tryCatch(client.getUniqueId(), () -> 
-                    api.operations().buy(client.getUniqueId(), shop)));
+            builder.item(0, buyButton, event -> {
+                api.exceptionService().tryCatch(client.getUniqueId(), () -> {
+                    api.operations().buy(client.getUniqueId(), shop);
+                    refreshBalance(api, client, uniqueId);
+                });
+            });
         }
 
         // slot 1; tha sell button
@@ -73,9 +93,12 @@ public final class ClientShopUI {
             sellMeta.lore(sellLore);
             sellButton.setItemMeta(sellMeta);
 
-            builder.item(1, sellButton, event -> 
-                api.exceptionService().tryCatch(uniqueId, () -> 
-                    api.operations().sell(client.getUniqueId(), shop)));
+            builder.item(1, sellButton, event -> {
+                api.exceptionService().tryCatch(uniqueId, () -> {
+                    api.operations().sell(client.getUniqueId(), shop);
+                    refreshBalance(api, client, uniqueId);
+                });
+            });   
         }
 
         // slot 4; shop item display thingy
@@ -101,7 +124,20 @@ public final class ClientShopUI {
         builder.open(client);
     }
 
-        // helper: create funds display item
+    private void refreshBalance(final SlabbyAPI api, final Player player, final UUID uniqueId) {
+        final var context = openMenus.get(uniqueId);
+        if (context == null) return;
+
+        final Inventory inv = context.menu.getInventory(player);
+
+        inv.setItem(7, createFundsItem(api, player));
+    }
+
+    public void onClose(final UUID uniqueId) {
+        openMenus.remove(uniqueId);
+    }
+
+    // helper: create funds display item
     private ItemStack createFundsItem(final SlabbyAPI api, final Player client) {
         final var fundsItem = ItemBuilder.of(Material.PAPER)
                 .name(api.messages().client().funds().title())
@@ -132,6 +168,11 @@ public final class ClientShopUI {
         if (shop.sellPrice() != null) {
             final var sellPriceEach = shop.sellPrice() == 0 ? 0 : shop.sellPrice() / shop.quantity();
             lore.add(api.messages().commandBlock().sellPrice(shop.quantity(), shop.sellPrice(), sellPriceEach));
+        }
+
+        if (shop.stock() == null) {
+            lore.add(Component.empty());
+            lore.add(Component.text("⚡ ADMIN SHOP - INFINITE STOCK ⚡", NamedTextColor.GOLD));
         }
 
         final var item = ItemBuilder.of(Material.COMMAND_BLOCK)
