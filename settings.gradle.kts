@@ -11,5 +11,6 @@ dependencyResolutionManagement {
         maven("https://repo.xenondevs.xyz/releases")
         maven("https://repo.aikar.co/content/groups/aikar/")
         maven("https://jitpack.io")
+        maven("https://repo.hxrry.dev/snapshots")
     }
 }

@@ -15,7 +15,7 @@ dependencies {
 
     implementation(libs.configurate.yaml)
 
-    implementation(libs.invui)
+    implementation(libs.hxgui)
 
     compileOnly(libs.lands.api)
 

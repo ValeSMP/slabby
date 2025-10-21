@@ -2,8 +2,10 @@ package com.valesmp.slabby;
 
 import co.aikar.commands.InvalidCommandArgument;
 import co.aikar.commands.PaperCommandManager;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+
 import com.valesmp.slabby.command.SlabbyCommand;
 import com.valesmp.slabby.config.BukkitSlabbyMessages;
 import com.valesmp.slabby.config.BukkitSlabbyConfig;
@@ -25,10 +27,15 @@ import com.valesmp.slabby.wrapper.serialization.BukkitSerializationWrapper;
 import com.valesmp.slabby.wrapper.serialization.SerializationWrapper;
 import com.valesmp.slabby.wrapper.sound.BukkitSoundWrapper;
 import com.valesmp.slabby.wrapper.sound.SoundWrapper;
+import com.valesmp.slabby.importer.slabbo.SlabboShop;
+
 import lombok.Getter;
 import lombok.experimental.Accessors;
+
 import me.angeschossen.lands.api.LandsIntegration;
+
 import net.milkbowl.vault.economy.Economy;
+
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -37,9 +44,9 @@ import org.bukkit.event.HandlerList;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
+
 import org.spongepowered.configurate.ConfigurateException;
 import org.spongepowered.configurate.yaml.YamlConfigurationLoader;
-import com.valesmp.slabby.importer.slabbo.SlabboShop;
 
 import java.io.File;
 import java.nio.file.Path;
@@ -48,6 +55,8 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.logging.Logger;
+
+import dev.hxrry.hxgui.HxGUI;
 
 @Accessors(fluent = true)
 public final class Slabby extends JavaPlugin implements SlabbyAPI {
@@ -110,6 +119,9 @@ public final class Slabby extends JavaPlugin implements SlabbyAPI {
 
     @Override
     public void onEnable() {
+
+        HxGUI.init(this);
+
         if (!setupEconomy()) {
             getLogger().warning("Error while setting up economy");
             getServer().getPluginManager().disablePlugin(this);
@@ -160,6 +172,8 @@ public final class Slabby extends JavaPlugin implements SlabbyAPI {
 
     @Override
     public void onDisable() {
+        HxGUI.shutdown();
+        
         getServer().getServicesManager().unregister(this);
         HandlerList.unregisterAll(this);
         if (this.repository != null) {

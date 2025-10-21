@@ -7,33 +7,27 @@ import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import xyz.xenondevs.invui.item.ItemProvider;
-import xyz.xenondevs.invui.item.impl.SimpleItem;
 
 import java.util.ArrayList;
 import java.util.function.BiConsumer;
-import java.util.function.Supplier;
 
 @UtilityClass
 public final class GuiHelper {
 
     public static final String INFINITY = "∞";
 
-    public Supplier<? extends ItemProvider> itemStack(final Material material, final BiConsumer<ItemStack, ItemMeta> action) {
-        return () -> s -> {
+    public ItemStack itemStack(final Material material, final BiConsumer<ItemStack, ItemMeta> action) {
             final var itemStack = new ItemStack(material);
             final var meta = itemStack.getItemMeta();
 
             action.accept(itemStack, meta);
 
             itemStack.setItemMeta(meta);
-
             return itemStack;
-        };
     }
 
-    public SimpleItem commandBlock(final SlabbyAPI api, final Shop shop, final ItemStack itemStack) {
-        return new SimpleItem(itemStack(Material.COMMAND_BLOCK, (it, meta) -> {
+    public ItemStack commandBlock(final SlabbyAPI api, final Shop shop, final ItemStack itemStack) {
+        return itemStack(Material.COMMAND_BLOCK, (it, meta) -> {
             meta.displayName(api.messages().commandBlock().title());
 
             final var owners = shop.owners()
@@ -56,7 +50,7 @@ public final class GuiHelper {
                     add(api.messages().commandBlock().sellPrice(shop.quantity(), shop.sellPrice(), sellPriceEach));
                 }
             }});
-        }).get());
+        });
     }
 
 }

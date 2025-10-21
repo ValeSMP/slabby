@@ -9,9 +9,9 @@ plugin-annotations = "1.2.3-SNAPSHOT"
 acf-paper = "0.5.1-SNAPSHOT"
 vault = "1.7"
 configurate-yaml = "4.2.0"
-invui = "1.36"
 lands-api = "7.8.5"
 gson = "2.11.0"
+hxgui = "1.0.0-SNAPSHOT"
 
 [libraries]
 adventure = { module = "net.kyori:adventure-api", version.ref = "adventure" }
@@ -23,9 +23,10 @@ plugin-annotations = { module = "org.spigotmc:plugin-annotations", version.ref  
 acf-paper = { module = "co.aikar:acf-paper", version.ref = "acf-paper" }
 vault = { module = "com.github.MilkBowl:VaultAPI", version.ref = "vault" }
 configurate-yaml = { module = "org.spongepowered:configurate-yaml", version.ref = "configurate-yaml" }
-invui = { module = "xyz.xenondevs.invui:invui", version.ref = "invui" }
 lands-api = { module = "com.github.angeschossen:LandsAPI", version.ref = "lands-api" }
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
+hxgui = { module = "dev.hxrry:hxgui", version.ref = "hxgui" }
+
 
 [bundles]
 sqlite = ["sqlite-jdbc", "ormlite-jdbc"]

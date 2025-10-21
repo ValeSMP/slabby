@@ -4,105 +4,101 @@ import com.valesmp.slabby.SlabbyAPI;
 import com.valesmp.slabby.audit.Auditable;
 import com.valesmp.slabby.shop.Shop;
 import com.valesmp.slabby.shop.ShopWizard;
+
+import dev.hxrry.hxgui.components.Pagination;
+import dev.hxrry.hxgui.core.MenuItem;
 import lombok.experimental.UtilityClass;
 import org.bukkit.Bukkit;
-import org.bukkit.Material;
+
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.inventory.ItemStack;
-import xyz.xenondevs.inventoryaccess.component.AdventureComponentWrapper;
-import xyz.xenondevs.invui.gui.PagedGui;
-import xyz.xenondevs.invui.gui.structure.Markers;
-import xyz.xenondevs.invui.item.Item;
-import xyz.xenondevs.invui.item.ItemProvider;
-import xyz.xenondevs.invui.item.builder.ItemBuilder;
-import xyz.xenondevs.invui.item.impl.SimpleItem;
-import xyz.xenondevs.invui.item.impl.controlitem.PageItem;
-import xyz.xenondevs.invui.window.Window;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.List;
 import java.util.UUID;
+
+// REMOVE: InvUI imports (Window, PagedGui, PageItem, AdventureComponentWrapper, Markers)
+// NEW: HxGUI imports (ItemBuilder, Pagination, MenuItem)
 
 @UtilityClass
 public final class RestoreShopUI {
 
     public void open(final SlabbyAPI api, final Player viewer, final UUID uniqueId) {
+        // Get all deleted shops sorted by creation date (newest first)
         final var deletedShops = api.repository()
                 .shopsOf(uniqueId, Shop.State.DELETED)
                 .stream()
                 .sorted(Comparator.comparing(Auditable::createdOn, Comparator.reverseOrder()))
-                .map(it -> {
-                    final var item = api.serialization().<ItemStack>deserialize(it.item());
-
-                    if (item.getMaxStackSize() != 1)
-                        item.setAmount(Math.max(1, Math.min(it.quantity(), item.getMaxStackSize())));
-
-                    final var owners = it.owners()
-                            .stream()
-                            .map(i -> Bukkit.getOfflinePlayer(i.uniqueId()).getName())
-                            .toArray(String[]::new);
-
-                    item.lore(new ArrayList<>() {{
-                        if (it.buyPrice() != null)
-                            add(api.messages().restore().buyPrice(it.buyPrice()));
-
-                        if (it.sellPrice() != null)
-                            add(api.messages().restore().sellPrice(it.sellPrice()));
-
-                        add(api.messages().restore().quantity(it.quantity()));
-
-                        if (it.stock() != null)
-                            add(api.messages().restore().stock(it.stock()));
-
-                        add(api.messages().restore().note(it.note()));
-                        add(api.messages().restore().owners(owners));
-                    }});
-
-                    return (Item) new SimpleItem(item, c -> {
-                        api.operations()
-                                .wizardOf(viewer.getUniqueId(), it)
-                                .state(Shop.State.ACTIVE)
-                                .wizardState(ShopWizard.WizardState.AWAITING_LOCATION);
-
-                        viewer.closeInventory(InventoryCloseEvent.Reason.PLUGIN);
-
-                        viewer.sendMessage(api.messages().restore().message());
-                    });
-                })
                 .toList();
 
-        final var gui = PagedGui.items()
-                .setStructure(
-                        "X X X X X X X X X",
-                        "X X X X X X X X X",
-                        "X X X X X X X X X",
-                        "X X X X X X X X X",
-                        "X X X X X X X X X",
-                        "# # # < # > # # #")
-                .addIngredient('X', Markers.CONTENT_LIST_SLOT_HORIZONTAL)
-                .addIngredient('<', new PageItem(false) {
-                    @Override
-                    public ItemProvider getItemProvider(PagedGui<?> pagedGui) {
-                        return new ItemBuilder(Material.RED_STAINED_GLASS_PANE).setDisplayName(new AdventureComponentWrapper(api.messages().general().previousPage()));
-                    }
-                })
-                .addIngredient('>', new PageItem(true) {
-                    @Override
-                    public ItemProvider getItemProvider(PagedGui<?> pagedGui) {
-                        return new ItemBuilder(Material.RED_STAINED_GLASS_PANE).setDisplayName(new AdventureComponentWrapper(api.messages().general().nextPage()));
-                    }
-                })
-                .setContent(deletedShops)
-                .build();
+        // NEW: Create pagination component (6 rows: 5 for content + 1 for navigation)
+        final Pagination pagination = new Pagination(api.messages().restore().title(), 6);
+        
+        // NEW: Configure pagination layout
+        pagination.contentArea(0, 44) // Slots 0-44 (5 rows of 9 = 45 slots)
+                  .navigationSlots(45, 53, 49); // Previous=45, Next=53, Info=49
 
-        final var window = Window.single()
-                .setViewer(viewer)
-                .setTitle(new AdventureComponentWrapper(api.messages().restore().title()))
-                .setGui(gui)
-                .build();
+        // NEW: Convert shops to MenuItems with click handlers
+        final List<MenuItem> shopItems = new ArrayList<>();
+        
+        for (Shop shop : deletedShops) {
+            final var item = api.serialization().<ItemStack>deserialize(shop.item());
 
-        window.open();
+            // Set stack size appropriately
+            if (item.getMaxStackSize() != 1) {
+                item.setAmount(Math.max(1, Math.min(shop.quantity(), item.getMaxStackSize())));
+            }
+
+            // Build lore for the shop item
+            final var owners = shop.owners()
+                    .stream()
+                    .map(owner -> Bukkit.getOfflinePlayer(owner.uniqueId()).getName())
+                    .toArray(String[]::new);
+
+            final List<net.kyori.adventure.text.Component> lore = new ArrayList<>();
+            
+            if (shop.buyPrice() != null) {
+                lore.add(api.messages().restore().buyPrice(shop.buyPrice()));
+            }
+            
+            if (shop.sellPrice() != null) {
+                lore.add(api.messages().restore().sellPrice(shop.sellPrice()));
+            }
+            
+            lore.add(api.messages().restore().quantity(shop.quantity()));
+            
+            if (shop.stock() != null) {
+                lore.add(api.messages().restore().stock(shop.stock()));
+            }
+            
+            lore.add(api.messages().restore().note(shop.note()));
+            lore.add(api.messages().restore().owners(owners));
+
+            // Apply lore to item
+            item.lore(lore);
+
+            // NEW: Create MenuItem with click handler for restoring shop
+            final MenuItem menuItem = new MenuItem(item, clickEvent -> {
+                // Start restoration wizard
+                api.operations()
+                        .wizardOf(viewer.getUniqueId(), shop)
+                        .state(Shop.State.ACTIVE)
+                        .wizardState(ShopWizard.WizardState.AWAITING_LOCATION);
+
+                viewer.closeInventory(InventoryCloseEvent.Reason.PLUGIN);
+                viewer.sendMessage(api.messages().restore().message());
+            });
+
+            shopItems.add(menuItem);
+        }
+
+        // NEW: Add all items to pagination
+        pagination.setItems(shopItems);
+
+        // NEW: Open paginated menu
+        pagination.open(viewer);
     }
 
 }
