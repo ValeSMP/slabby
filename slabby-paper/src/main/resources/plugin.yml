@@ -62,6 +62,14 @@ permissions:
   slabby.admin.restore:
     description: Allows admins to restore shops from other players
     default: op
+
+  slabby.admin.resetdisplays:
+    description: Allows admins to regenerate all display entities
+    default: op
+  
+  slabby.admin.setowner:
+    description: Allows admins to transfer shop ownership
+    default: op
   
   slabby.locate.item:
     description: Allows players to locate slabby shops

@@ -164,12 +164,14 @@ public final class OwnerShopUI {
             api.sound().play(uniqueId, shop, Sounds.NAVIGATION);
         });
 
+        /* 
         // slot 9 (row 2, slot 0): logs (if permission)
         api.permission().ifPermission(uniqueId, SlabbyPermissions.SHOP_LOGS, () -> {
             builder.item(9, ItemBuilder.of(Material.BOOK)
                     .name(api.messages().owner().logs().title())
                     .build(), event -> LogShopUI.open(api, shopOwner, shop));
         });
+        */
 
         final var menu = builder.build();
         openMenus.put(uniqueId, new MenuContext(menu, shop, item)); // Store before opening!

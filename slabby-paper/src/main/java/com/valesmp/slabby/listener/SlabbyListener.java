@@ -1,5 +1,6 @@
 package com.valesmp.slabby.listener;
 
+import com.valesmp.slabby.Slabby;
 import com.valesmp.slabby.SlabbyAPI;
 import com.valesmp.slabby.exception.FaultException;
 import com.valesmp.slabby.exception.SlabbyException;
@@ -27,7 +28,12 @@ import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+
+import net.kyori.adventure.text.format.NamedTextColor;
+import static net.kyori.adventure.text.Component.text;
+
 
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -92,10 +98,21 @@ public final class SlabbyListener implements Listener {
             });
         } else if (BlockHelper.isInventoryAllowed(block)) {
             api.operations().ifWizard(uniqueId, wizard -> {
+                player.sendMessage(text("[DEBUG] Wizard state: " + wizard.wizardState(), NamedTextColor.AQUA));
+                
                 if (wizard.wizardState() == ShopWizard.WizardState.AWAITING_INVENTORY_LINK) {
                     if (player.isSneaking()) {
+
+                        player.sendMessage(text("[DEBUG] Attempting to link chest at: " + blockX + ", " + blockY + ", " + blockZ, NamedTextColor.YELLOW));
+
                         api.operations().linkShop(uniqueId, wizard, blockX, blockY, blockZ, blockWorld);
-                        //TODO: notify player
+                        
+                        player.sendMessage(text("[Slabby] ", NamedTextColor.GREEN)
+                            .append(text("✓ Chest linked successfully!", NamedTextColor.WHITE))
+                            .appendNewline()
+                            .append(text("Location: " + blockX + ", " + blockY + ", " + blockZ, NamedTextColor.GRAY)));
+                    } else {
+                        player.sendMessage(text("[DEBUG] You ain't sneakin! Hold sneak, THEN left click the chest", NamedTextColor.RED));
                     }
                 }
             });
@@ -134,9 +151,29 @@ public final class SlabbyListener implements Listener {
             final var canAccessClaim = api.claim() == null || api.claim().canCreateShop(uniqueId, blockX, blockY, blockZ, blockWorld);
 
             if (canAccessClaim && hasConfigurationItem) {
+                
+                if (!isWithinBoundaries(blockX, blockZ, blockWorld)) {
+                    player.sendMessage(text("[Slabby] ", NamedTextColor.YELLOW)
+                        .append(text("Shops can only be created in the shopping district!", NamedTextColor.RED))
+                        .appendNewline()
+                        .append(text("Allowed area: ", NamedTextColor.GRAY))
+                        .append(text(getBoundaryDescription(), NamedTextColor.YELLOW)));
+                    return;
+                }
+                
                 final var wizard = api.operations().wizards().get(uniqueId);
 
                 if (wizard != null && wizard.wizardState() == ShopWizard.WizardState.AWAITING_LOCATION) {
+                    
+                    if (!isWithinBoundaries(blockX, blockZ, blockWorld)) {
+                    player.sendMessage(text("[Slabby] ", NamedTextColor.YELLOW)
+                        .append(text("Shops can only be placed in the shopping district!", NamedTextColor.RED))
+                        .appendNewline()
+                        .append(text("Allowed area: ", NamedTextColor.GRAY))
+                        .append(text(getBoundaryDescription(), NamedTextColor.YELLOW)));
+                    return;
+                }
+                    
                     wizard.location(blockX, blockY, blockZ, blockWorld);
                     wizard.wizardState(ShopWizard.WizardState.AWAITING_CONFIRMATION);
                     api.sound().play(uniqueId, wizard.x(), wizard.y(), wizard.z(), wizard.world(), Sounds.MODIFY_SUCCESS);
@@ -167,11 +204,14 @@ public final class SlabbyListener implements Listener {
             }
         });
 
-        if (event.getAction() == InventoryAction.DROP_ONE_SLOT || event.getAction() == InventoryAction.DROP_ALL_CURSOR || event.getAction() == InventoryAction.DROP_ALL_SLOT || event.getAction() == InventoryAction.DROP_ONE_CURSOR)
+        if (event.getAction() == InventoryAction.DROP_ONE_SLOT 
+                || event.getAction() == InventoryAction.DROP_ALL_CURSOR 
+                || event.getAction() == InventoryAction.DROP_ALL_SLOT 
+                || event.getAction() == InventoryAction.DROP_ONE_CURSOR) {
             return;
+        }
 
-        if (ItemHelper.isRestrictedItem(event.getCursor()) && event.getClickedInventory() != event.getWhoClicked().getInventory()
-                || event.isShiftClick() && ItemHelper.isRestrictedItem(event.getCurrentItem())) {
+        if (ItemHelper.isRestrictedItem(event.getCursor()) && event.getClickedInventory() != event.getWhoClicked().getInventory()) {
             event.setCancelled(true);
         }
     }
@@ -188,7 +228,40 @@ public final class SlabbyListener implements Listener {
             });
 
             OwnerShopUI.onClose(event.getPlayer().getUniqueId());
+            ClientShopUI.onClose(event.getPlayer().getUniqueId());
         }
+
+        handleChestRestocking(event);
+    }
+
+    private boolean isWithinBoundaries(final int x, final int z, final String world) {
+        // with no claim system, allow anywhere
+        if (api.claim() == null) {
+            return true;
+        }
+
+        final var area = api.claim().getArea();
+        
+        // check in correct world
+        if (!area.world().equalsIgnoreCase(world)) {
+            return false;
+        }
+        
+        // check in correct boundaries
+        return x >= area.minX() && x <= area.maxX() 
+            && z >= area.minZ() && z <= area.maxZ();
+    }
+
+    private String getBoundaryDescription() {
+        if (api.claim() == null) {
+            return "anywhere";
+        }
+        
+        final var area = api.claim().getArea();
+        return String.format("X: %d to %d, Z: %d to %d (%s)", 
+            area.minX(), area.maxX(), 
+            area.minZ(), area.maxZ(), 
+            area.world());
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
@@ -263,13 +336,18 @@ public final class SlabbyListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST)
     private void onInventoryMoveItem(final InventoryMoveItemEvent event) {
+        Bukkit.getLogger().info("[DEBUG HOPPER] onInventoryMoveItem triggered");
+        
         final var restock = api.configuration().restock();
 
-        if (!restock.chests().enabled() || !restock.chests().hoppers().enabled())
+        if (!restock.chests().enabled() || !restock.chests().hoppers().enabled()) {
+            Bukkit.getLogger().info("[DEBUG HOPPER] Chest/hopper restocking disabled in config");
             return;
+        }
+        
+        Bukkit.getLogger().info("[DEBUG HOPPER] Chest restocking enabled");
 
         final var destination = event.getDestination();
-
         final var location = destination.getLocation();
 
         if (location == null || destination.getType() != InventoryType.CHEST)
@@ -278,46 +356,53 @@ public final class SlabbyListener implements Listener {
         Optional<Shop> shopOpt = Optional.empty();
 
         try {
-            shopOpt = api.repository().shopWithInventoryAt(location.getBlockX(), location.getBlockY(), location.getBlockZ(), location.getWorld().getName());
+            shopOpt = api.repository().shopWithInventoryAt(
+                location.getBlockX(), 
+                location.getBlockY(), 
+                location.getBlockZ(), 
+                location.getWorld().getName());
         } catch (final SlabbyException e) {
             api.exceptionService().logToConsole("Error while attempting to get shop for linked inventory", e);
+            return;
         }
 
-        shopOpt.ifPresent(shop -> {
-            final var itemStack = api.serialization().<ItemStack>deserialize(shop.item());
+        if (shopOpt.isEmpty())
+            return;
 
-            if (!itemStack.isSimilar(event.getItem()))
-                return;
+        final var shop = shopOpt.get();
+        final var shopItem = api.serialization().<ItemStack>deserialize(shop.item());
 
-            //TODO: ensure shop is not full, use same security measures as deposit function
+        // only process if the item being moved matches the shop item - issimilar is modern approach ?
+        if (!shopItem.isSimilar(event.getItem()))
+            return;
 
-            if (restock.chests().hoppers().batches() && itemStack.getMaxStackSize() > 1) {
-                final var amount = Math.min(itemStack.getMaxStackSize(), shop.quantity());
+        //TODO: ensure shop is not full, use same security measures as deposit function
+        if (restock.chests().hoppers().batches() && shopItem.getMaxStackSize() > 1) {
+            final var amount = Math.min(shopItem.getMaxStackSize(), shop.quantity());
+            shopItem.setAmount(amount - 1);
 
-                itemStack.setAmount(amount - 1);
-
-                if (destination.containsAtLeast(itemStack, itemStack.getAmount())) {
-                    shop.stock(shop.stock() + amount);
-
-                    try {
-                        api.repository().update(shop);
-                        event.setItem(ItemStack.empty());
-                        destination.remove(itemStack);
-                    } catch (final SlabbyException e) {
-                        api.exceptionService().logToConsole("Error while attempting to update shop from linked inventory", e);
-                    }
-                }
-            } else {
-                shop.stock(shop.stock() + event.getItem().getAmount());
+            if (destination.containsAtLeast(shopItem, shopItem.getAmount())) {
+                shop.stock(shop.stock() + amount);
 
                 try {
                     api.repository().update(shop);
                     event.setItem(ItemStack.empty());
+                    destination.remove(shopItem);
                 } catch (final SlabbyException e) {
                     api.exceptionService().logToConsole("Error while attempting to update shop from linked inventory", e);
                 }
             }
-        });
+        } else {
+            shop.stock(shop.stock() + event.getItem().getAmount());
+
+            try {
+                api.repository().update(shop);
+                event.setItem(ItemStack.empty());
+            } catch (final SlabbyException e) {
+                api.exceptionService().logToConsole("Error while attempting to update shop from linked inventory", e);
+            }
+        }
+        
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
@@ -421,6 +506,7 @@ public final class SlabbyListener implements Listener {
 
         event.getItemDrop().remove();
     }
+
     @EventHandler
     public void onInventoryDrag(final InventoryDragEvent event) {
         if (event.getInventory() == event.getWhoClicked().getInventory())
@@ -430,4 +516,127 @@ public final class SlabbyListener implements Listener {
             event.setCancelled(true);
     }
 
+    private void handleChestRestocking(final InventoryCloseEvent event) {
+        // Check if chest restocking is enabled
+        if (!api.configuration().restock().chests().enabled()) {
+            return;
+        }
+        
+        // Only handle player closures
+        if (!(event.getPlayer() instanceof Player player)) {
+            return;
+        }
+        
+        // Only handle chest inventories
+        if (event.getInventory().getType() != InventoryType.CHEST) {
+            return;
+        }
+        
+        // Get chest location
+        final var location = event.getInventory().getLocation();
+        if (location == null) {
+            return;
+        }
+        
+        // Check if this chest is linked to a shop
+        Optional<Shop> shopOpt = Optional.empty();
+        try {
+            shopOpt = api.repository().shopWithInventoryAt(
+                location.getBlockX(),
+                location.getBlockY(),
+                location.getBlockZ(),
+                location.getWorld().getName());
+        } catch (final SlabbyException e) {
+            api.exceptionService().logToConsole("Error checking for linked shop on chest close", e);
+            return;
+        }
+        
+        if (shopOpt.isEmpty()) {
+            return; // Not a linked chest
+        }
+        
+        final var shop = shopOpt.get();
+        
+        // SECURITY: Only allow shop owner or admins to manually restock
+        if (!shop.isOwner(player.getUniqueId()) && !api.isAdminMode(player.getUniqueId())) {
+            return;
+        }
+        
+        // Process the restocking
+        try {
+            updateShopStockFromChest(shop, event.getInventory());
+            
+            // Only send success message if player is still online (not disconnected)
+            if (player.isOnline() && event.getReason() == InventoryCloseEvent.Reason.PLAYER) {
+                player.sendMessage(text("[Slabby] ", NamedTextColor.GREEN)
+                    .append(text("✓ Chest restocked! New stock: " + shop.stock(), NamedTextColor.WHITE)));
+            }
+            
+            // Log to console if disconnect/kick (for admin awareness)
+            if (event.getReason() != InventoryCloseEvent.Reason.PLAYER) {
+                Bukkit.getLogger().info("[Slabby] Auto-restocked shop " + shop.id() + 
+                    " for " + player.getName() + " (reason: " + event.getReason() + ")");
+            }
+        } catch (final SlabbyException e) {
+            api.exceptionService().logToConsole("Error updating stock from manual chest restock on close", e);
+            
+            // Only send error message if player is still online
+            if (player.isOnline()) {
+                player.sendMessage(text("[Slabby] ", NamedTextColor.YELLOW)
+                    .append(text("Error updating shop stock!", NamedTextColor.RED)));
+            }
+        }
+    }
+
+    private void updateShopStockFromChest(final Shop shop, final Inventory chestInventory) throws SlabbyException {
+        api.repository().refresh(shop);
+        
+        final var shopItem = api.serialization().<ItemStack>deserialize(shop.item());
+        
+        Bukkit.getLogger().info("[DEBUG] updateShopStockFromChest called for shop " + shop.id());
+        Bukkit.getLogger().info("[DEBUG] Looking for item: " + shopItem.getType());
+        
+        int totalInChest = 0;
+        for (ItemStack item : chestInventory.getContents()) {
+            if (item != null && shopItem.isSimilar(item)) {
+                totalInChest += item.getAmount();
+                Bukkit.getLogger().info("[DEBUG] Found stack: " + item.getAmount());
+            }
+        }
+        
+        Bukkit.getLogger().info("[DEBUG] Total items in chest: " + totalInChest);
+        
+        if (totalInChest == 0) {
+            Bukkit.getLogger().info("[DEBUG] No items found - exiting");
+            return;
+        }
+        
+        int oldStock = shop.stock();
+        int newStock = oldStock + totalInChest;
+        
+        Bukkit.getLogger().info("[DEBUG] Old stock: " + oldStock + ", New stock: " + newStock);
+        
+        if (newStock > api.configuration().maxStock()) {
+            newStock = api.configuration().maxStock();
+            Bukkit.getLogger().info("[DEBUG] Capped at max stock: " + newStock);
+        }
+        
+        shop.stock(newStock);
+        Bukkit.getLogger().info("[DEBUG] Set shop stock to: " + newStock);
+        
+        api.repository().update(shop);
+        Bukkit.getLogger().info("[DEBUG] Updated shop in database");
+        
+        // FIXED: Remove ALL matching items properly by iterating through slots
+        for (int i = 0; i < chestInventory.getSize(); i++) {
+            ItemStack item = chestInventory.getItem(i);
+            if (item != null && shopItem.isSimilar(item)) {
+                chestInventory.setItem(i, null); // Clear the slot
+                Bukkit.getLogger().info("[DEBUG] Removed stack from slot " + i);
+            }
+        }
+        Bukkit.getLogger().info("[DEBUG] All matching items removed from chest");
+    }
 }
+
+

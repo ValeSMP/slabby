@@ -33,9 +33,11 @@ public final class ClientShopUI {
     //temp
     private static class MenuContext {
         final Menu menu;
+        final Shop shop;
 
-        MenuContext(Menu menu) {
+        MenuContext(Menu menu, Shop shop) {
             this.menu = menu;
+            this.shop = shop;
         }
     }
 
@@ -72,6 +74,7 @@ public final class ClientShopUI {
                 api.exceptionService().tryCatch(client.getUniqueId(), () -> {
                     api.operations().buy(client.getUniqueId(), shop);
                     refreshBalance(api, client, uniqueId);
+                    refreshStockDisplay(api, client, uniqueId);
                 });
             });
         }
@@ -97,6 +100,7 @@ public final class ClientShopUI {
                 api.exceptionService().tryCatch(uniqueId, () -> {
                     api.operations().sell(client.getUniqueId(), shop);
                     refreshBalance(api, client, uniqueId);
+                    refreshStockDisplay(api, client, uniqueId);
                 });
             });   
         }
@@ -120,8 +124,11 @@ public final class ClientShopUI {
         // slot 8; command block (shop info)
         builder.item(8, createCommandBlockItem(api, shop, item));
 
+        final var menu = builder.build();
+        openMenus.put(uniqueId, new MenuContext(menu, shop));
+
         // open gui
-        builder.open(client);
+        menu.open(client);
     }
 
     private void refreshBalance(final SlabbyAPI api, final Player player, final UUID uniqueId) {
@@ -135,6 +142,54 @@ public final class ClientShopUI {
 
     public void onClose(final UUID uniqueId) {
         openMenus.remove(uniqueId);
+    }
+
+    private void refreshStockDisplay(final SlabbyAPI api, final Player player, final UUID uniqueId) {
+        final var context = openMenus.get(uniqueId);
+        if (context == null) return;
+
+        api.repository().refresh(context.shop);
+
+        final Inventory inv = context.menu.getInventory(player);
+        final var item = api.serialization().<ItemStack>deserialize(context.shop.item());
+
+        // refresh buy button (slot 0) if buy is enabled
+        if (context.shop.buyPrice() != null) {
+            final var buyLore = new ArrayList<Component>();
+            buyLore.add(api.messages().client().buy().price(context.shop.buyPrice()));
+            if (context.shop.stock() != null) {
+                buyLore.add(api.messages().client().buy().stock(context.shop.stock()));
+                buyLore.add(api.messages().client().buy().stacks(context.shop.stock() / item.getMaxStackSize()));
+            }
+
+            final var buyButton = ItemBuilder.of(Material.GOLD_INGOT)
+                    .name(api.messages().client().buy().title(item.displayName(), context.shop.quantity()))
+                    .build();
+            final var buyMeta = buyButton.getItemMeta();
+            buyMeta.lore(buyLore);
+            buyButton.setItemMeta(buyMeta);
+            
+            inv.setItem(0, buyButton);
+        }
+
+        // refresh sell button (slot 1) if sell is enabled
+        if (context.shop.sellPrice() != null) {
+            final var sellLore = new ArrayList<Component>();
+            sellLore.add(api.messages().client().sell().price(context.shop.sellPrice()));
+            if (context.shop.stock() != null) {
+                sellLore.add(api.messages().client().sell().stock(context.shop.stock()));
+                sellLore.add(api.messages().client().sell().stacks(context.shop.stock() / item.getMaxStackSize()));
+            }
+
+            final var sellButton = ItemBuilder.of(Material.IRON_INGOT)
+                    .name(api.messages().client().sell().title(item.displayName(), context.shop.quantity()))
+                    .build();
+            final var sellMeta = sellButton.getItemMeta();
+            sellMeta.lore(sellLore);
+            sellButton.setItemMeta(sellMeta);
+            
+            inv.setItem(1, sellButton);
+        }
     }
 
     // helper: create funds display item
