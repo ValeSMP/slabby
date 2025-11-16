@@ -98,12 +98,12 @@ public final class SlabbyListener implements Listener {
             });
         } else if (BlockHelper.isInventoryAllowed(block)) {
             api.operations().ifWizard(uniqueId, wizard -> {
-                player.sendMessage(text("[DEBUG] Wizard state: " + wizard.wizardState(), NamedTextColor.AQUA));
+                // player.sendMessage(text("[DEBUG] Wizard state: " + wizard.wizardState(), NamedTextColor.AQUA));
                 
                 if (wizard.wizardState() == ShopWizard.WizardState.AWAITING_INVENTORY_LINK) {
                     if (player.isSneaking()) {
 
-                        player.sendMessage(text("[DEBUG] Attempting to link chest at: " + blockX + ", " + blockY + ", " + blockZ, NamedTextColor.YELLOW));
+                        // player.sendMessage(text("[DEBUG] Attempting to link chest at: " + blockX + ", " + blockY + ", " + blockZ, NamedTextColor.YELLOW));
 
                         api.operations().linkShop(uniqueId, wizard, blockX, blockY, blockZ, blockWorld);
                         
@@ -112,7 +112,7 @@ public final class SlabbyListener implements Listener {
                             .appendNewline()
                             .append(text("Location: " + blockX + ", " + blockY + ", " + blockZ, NamedTextColor.GRAY)));
                     } else {
-                        player.sendMessage(text("[DEBUG] You ain't sneakin! Hold sneak, THEN left click the chest", NamedTextColor.RED));
+                        player.sendMessage(text("You ain't sneakin! Hold sneak, THEN left click the chest", NamedTextColor.RED));
                     }
                 }
             });
@@ -336,16 +336,16 @@ public final class SlabbyListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST)
     private void onInventoryMoveItem(final InventoryMoveItemEvent event) {
-        Bukkit.getLogger().info("[DEBUG HOPPER] onInventoryMoveItem triggered");
+        // Bukkit.getLogger().info("[DEBUG HOPPER] onInventoryMoveItem triggered");
         
         final var restock = api.configuration().restock();
 
         if (!restock.chests().enabled() || !restock.chests().hoppers().enabled()) {
-            Bukkit.getLogger().info("[DEBUG HOPPER] Chest/hopper restocking disabled in config");
+            // Bukkit.getLogger().info("[DEBUG HOPPER] Chest/hopper restocking disabled in config");
             return;
         }
         
-        Bukkit.getLogger().info("[DEBUG HOPPER] Chest restocking enabled");
+        // Bukkit.getLogger().info("[DEBUG HOPPER] Chest restocking enabled");
 
         final var destination = event.getDestination();
         final var location = destination.getLocation();
@@ -593,49 +593,49 @@ public final class SlabbyListener implements Listener {
         
         final var shopItem = api.serialization().<ItemStack>deserialize(shop.item());
         
-        Bukkit.getLogger().info("[DEBUG] updateShopStockFromChest called for shop " + shop.id());
-        Bukkit.getLogger().info("[DEBUG] Looking for item: " + shopItem.getType());
+        // Bukkit.getLogger().info("[DEBUG] updateShopStockFromChest called for shop " + shop.id());
+        // Bukkit.getLogger().info("[DEBUG] Looking for item: " + shopItem.getType());
         
         int totalInChest = 0;
         for (ItemStack item : chestInventory.getContents()) {
             if (item != null && shopItem.isSimilar(item)) {
                 totalInChest += item.getAmount();
-                Bukkit.getLogger().info("[DEBUG] Found stack: " + item.getAmount());
+                // Bukkit.getLogger().info("[DEBUG] Found stack: " + item.getAmount());
             }
         }
         
-        Bukkit.getLogger().info("[DEBUG] Total items in chest: " + totalInChest);
+        // Bukkit.getLogger().info("[DEBUG] Total items in chest: " + totalInChest);
         
         if (totalInChest == 0) {
-            Bukkit.getLogger().info("[DEBUG] No items found - exiting");
+            // Bukkit.getLogger().info("[DEBUG] No items found - exiting");
             return;
         }
         
         int oldStock = shop.stock();
         int newStock = oldStock + totalInChest;
         
-        Bukkit.getLogger().info("[DEBUG] Old stock: " + oldStock + ", New stock: " + newStock);
+        // Bukkit.getLogger().info("[DEBUG] Old stock: " + oldStock + ", New stock: " + newStock);
         
         if (newStock > api.configuration().maxStock()) {
             newStock = api.configuration().maxStock();
-            Bukkit.getLogger().info("[DEBUG] Capped at max stock: " + newStock);
+            // Bukkit.getLogger().info("[DEBUG] Capped at max stock: " + newStock);
         }
         
         shop.stock(newStock);
-        Bukkit.getLogger().info("[DEBUG] Set shop stock to: " + newStock);
+        // Bukkit.getLogger().info("[DEBUG] Set shop stock to: " + newStock);
         
         api.repository().update(shop);
-        Bukkit.getLogger().info("[DEBUG] Updated shop in database");
+        // Bukkit.getLogger().info("[DEBUG] Updated shop in database");
         
         // FIXED: Remove ALL matching items properly by iterating through slots
         for (int i = 0; i < chestInventory.getSize(); i++) {
             ItemStack item = chestInventory.getItem(i);
             if (item != null && shopItem.isSimilar(item)) {
                 chestInventory.setItem(i, null); // Clear the slot
-                Bukkit.getLogger().info("[DEBUG] Removed stack from slot " + i);
+                // Bukkit.getLogger().info("[DEBUG] Removed stack from slot " + i);
             }
         }
-        Bukkit.getLogger().info("[DEBUG] All matching items removed from chest");
+        // Bukkit.getLogger().info("[DEBUG] All matching items removed from chest");
     }
 }
 
