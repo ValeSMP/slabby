@@ -1,10 +1,10 @@
 [versions]
-adventure = "4.17.0"
+adventure = "4.26.1"
 sqlite-jdbc = "3.50.3.0" 
 ormlite-jdbc = "6.1"
 lombok = "1.18.40"
-shadow = "8.3.0"
-paper = "1.21.11-R0.1-SNAPSHOT"
+shadow = "9.4.1"
+paper = "26.1.2.build.+"
 plugin-annotations = "1.2.3-SNAPSHOT"
 acf-paper = "0.5.1-SNAPSHOT"
 vault = "1.7"

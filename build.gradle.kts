@@ -10,14 +10,14 @@ subprojects {
     version = providers.gradleProperty("slabby_version").get()
 
     dependencies {
-        compileOnly("org.projectlombok:lombok:1.18.34")
-        annotationProcessor("org.projectlombok:lombok:1.18.34")
+        compileOnly("org.projectlombok:lombok:1.18.40")
+        annotationProcessor("org.projectlombok:lombok:1.18.40")
 
-        testCompileOnly("org.projectlombok:lombok:1.18.34")
-        testAnnotationProcessor("org.projectlombok:1.18.34")
+        testCompileOnly("org.projectlombok:lombok:1.18.40")
+        testAnnotationProcessor("org.projectlombok:lombok:1.18.40")
     }
 
     java {
-        toolchain.languageVersion.set(JavaLanguageVersion.of(21))
+        toolchain.languageVersion.set(JavaLanguageVersion.of(25))
     }
 }

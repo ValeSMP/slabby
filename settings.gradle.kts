@@ -5,6 +5,7 @@ include("slabby-api", "slabby-sqlite3", "slabby-paper")
 dependencyResolutionManagement {
     @Suppress("UnstableApiUsage")
     repositories {
+        mavenLocal()
         mavenCentral()
         maven("https://repo.papermc.io/repository/maven-public/")
         maven("https://hub.spigotmc.org/nexus/content/groups/public/")
