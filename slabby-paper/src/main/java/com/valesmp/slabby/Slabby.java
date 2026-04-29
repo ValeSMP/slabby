@@ -27,7 +27,6 @@ import com.valesmp.slabby.wrapper.serialization.BukkitSerializationWrapper;
 import com.valesmp.slabby.wrapper.serialization.SerializationWrapper;
 import com.valesmp.slabby.wrapper.sound.BukkitSoundWrapper;
 import com.valesmp.slabby.wrapper.sound.SoundWrapper;
-import com.valesmp.slabby.importer.slabbo.SlabboShop;
 
 import lombok.Getter;
 import lombok.experimental.Accessors;
@@ -39,7 +38,6 @@ import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
-import org.bukkit.configuration.serialization.ConfigurationSerialization;
 import org.bukkit.event.HandlerList;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.ServicePriority;
@@ -60,10 +58,6 @@ import dev.hxrry.hxgui.HxGUI;
 
 @Accessors(fluent = true)
 public final class Slabby extends JavaPlugin implements SlabbyAPI {
-
-    static {
-        ConfigurationSerialization.registerClass(SlabboShop.class, "Shop");
-    }
 
     @Getter
     private SQLiteShopRepository repository;

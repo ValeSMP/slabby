@@ -19,7 +19,6 @@ public final class SlabbyPermissions {
     public static final String ADMIN_RELOAD = ADMIN_BASE + "reload";
     public static final String ADMIN_TOGGLE = ADMIN_BASE + "toggle";
     public static final String ADMIN_RESTORE = ADMIN_BASE + "restore";
-    public static final String ADMIN_IMPORT = ADMIN_BASE + "import";
     public static final String ADMIN_RESET_DISPLAYS = ADMIN_BASE + "resetdisplays";
     public static final String ADMIN_SET_OWNER = ADMIN_BASE + "setowner";
 

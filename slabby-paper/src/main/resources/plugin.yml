@@ -54,11 +54,7 @@ permissions:
   slabby.admin.toggle:
     description: Allows admins to interact with any shop as if it was their own
     default: op
-  
-  slabby.admin.import:
-    description: Allows admins to import shops from other plugins
-    default: op
-  
+
   slabby.admin.restore:
     description: Allows admins to restore shops from other players
     default: op

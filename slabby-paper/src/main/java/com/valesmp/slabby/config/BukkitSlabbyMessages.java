@@ -1091,20 +1091,8 @@ public final class BukkitSlabbyMessages implements SlabbyMessages {
             }
         }
 
-        @ConfigSerializable
-        final static class BukkitImporter implements Importer {
-
-            private String message;
-
-            @Override
-            public Component message() {
-                return MiniMessage.miniMessage().deserialize(this.message);
-            }
-        }
-
         private BukkitReload reload;
         private BukkitAdmin admin;
-        private BukkitImporter importer;
 
     }
 

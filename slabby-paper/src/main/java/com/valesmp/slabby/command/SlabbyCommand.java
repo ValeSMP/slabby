@@ -7,7 +7,6 @@ import com.valesmp.slabby.SlabbyAPI;
 import com.valesmp.slabby.exception.SlabbyException;
 import com.valesmp.slabby.gui.RestoreShopUI;
 import com.valesmp.slabby.helper.BlockHelper;
-import com.valesmp.slabby.importer.ImportType;
 import com.valesmp.slabby.maps.OrderBy;
 import com.valesmp.slabby.permission.SlabbyPermissions;
 import com.valesmp.slabby.shop.Shop;
@@ -57,14 +56,6 @@ public final class SlabbyCommand extends BaseCommand {
             final var target = targetName != null ? Bukkit.getOfflinePlayer(targetName).getUniqueId() : player.getUniqueId();
             RestoreShopUI.open(api, player, target);
         }
-    }
-
-    @Subcommand("import")
-    @CommandPermission(SlabbyPermissions.ADMIN_IMPORT)
-    private void onImport(final Player player, final ImportType importType) {
-        importType.importer().onImport(api);
-
-        player.sendMessage(api.messages().command().importer().message());
     }
 
     /**

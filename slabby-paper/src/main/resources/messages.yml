@@ -173,5 +173,3 @@ command:
   admin:
     enabled: '<yellow>[Slabby]</yellow> <green>Enabled</green> <gray>admin mode</gray>'
     disabled: '<yellow>[Slabby]</yellow> <red>Disabled</red> <gray>admin mode</gray>'
-  importer:
-    message: '<yellow>[Slabby]</yellow> <gray>Import complete</gray>'
