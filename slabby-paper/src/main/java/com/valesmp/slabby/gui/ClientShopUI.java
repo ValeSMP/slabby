@@ -1,6 +1,8 @@
 package com.valesmp.slabby.gui;
 
+import com.valesmp.slabby.Slabby;
 import com.valesmp.slabby.SlabbyAPI;
+import com.valesmp.slabby.exception.SlabbyException;
 import com.valesmp.slabby.shop.Shop;
 import lombok.experimental.UtilityClass;
 import net.kyori.adventure.text.Component;
@@ -9,6 +11,7 @@ import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.scheduler.BukkitTask;
 
 import org.bukkit.Bukkit;
 
@@ -22,10 +25,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-// changes 1.1 > 1.2 removed autoupdate, TODO: reintroduce it
+// changes 1.1 > 1.2 removed autoupdate, reintroduced in 1.3 via a per-menu scheduled task
 // also removed supplieditem and used regular items with click handlers instead, added conditional button creation into this menu and helper methods because OCD
 @UtilityClass
 public final class ClientShopUI {
+
+    private static final long REFRESH_PERIOD_TICKS = 40L;
 
     //temp
     private final Map<UUID, MenuContext> openMenus = new HashMap<>();
@@ -34,6 +39,7 @@ public final class ClientShopUI {
     private static class MenuContext {
         final Menu menu;
         final Shop shop;
+        BukkitTask refreshTask;
 
         MenuContext(Menu menu, Shop shop) {
             this.menu = menu;
@@ -125,10 +131,40 @@ public final class ClientShopUI {
         builder.item(8, createCommandBlockItem(api, shop, item));
 
         final var menu = builder.build();
-        openMenus.put(uniqueId, new MenuContext(menu, shop));
+        final var context = new MenuContext(menu, shop);
+        openMenus.put(uniqueId, context);
 
         // open gui
         menu.open(client);
+
+        context.refreshTask = Bukkit.getScheduler().runTaskTimer((Slabby) api, () -> {
+            final var ctx = openMenus.get(uniqueId);
+            if (ctx == null) return;
+
+            final var p = Bukkit.getPlayer(uniqueId);
+            if (p == null || !p.isOnline()) {
+                onClose(uniqueId);
+                return;
+            }
+
+            try {
+                api.repository().refresh(ctx.shop);
+            } catch (final SlabbyException e) {
+                api.exceptionService().logToConsole("Auto-refresh failed for client shop UI", e);
+                onClose(uniqueId);
+                p.closeInventory();
+                return;
+            }
+
+            if (ctx.shop.state() == Shop.State.DELETED) {
+                onClose(uniqueId);
+                p.closeInventory();
+                return;
+            }
+
+            refreshBalance(api, p, uniqueId);
+            refreshStockDisplay(api, p, uniqueId);
+        }, REFRESH_PERIOD_TICKS, REFRESH_PERIOD_TICKS);
     }
 
     private void refreshBalance(final SlabbyAPI api, final Player player, final UUID uniqueId) {
@@ -141,7 +177,9 @@ public final class ClientShopUI {
     }
 
     public void onClose(final UUID uniqueId) {
-        openMenus.remove(uniqueId);
+        final var context = openMenus.remove(uniqueId);
+        if (context != null && context.refreshTask != null && !context.refreshTask.isCancelled())
+            context.refreshTask.cancel();
     }
 
     private void refreshStockDisplay(final SlabbyAPI api, final Player player, final UUID uniqueId) {
