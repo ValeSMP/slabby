@@ -23,7 +23,8 @@ import org.bukkit.event.block.*;
 import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.inventory.*;
-import org.bukkit.event.player.AsyncPlayerChatEvent;
+import io.papermc.paper.event.player.AsyncChatEvent;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -265,55 +266,61 @@ public final class SlabbyListener implements Listener {
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
-    private void onChatMessage(final AsyncPlayerChatEvent event) {
-        // https://github.com/Aust1n46/VentureChat/issues/122
-        api.operations().ifWizard(event.getPlayer().getUniqueId(), wizard -> {
-            if (wizard.wizardState() == null || !wizard.wizardState().awaitingTextInput())
+    private void onChatMessage(final AsyncChatEvent event) {
+        final var player = event.getPlayer();
+        final var uniqueId = player.getUniqueId();
+
+        final var wizard = api.operations().wizards().get(uniqueId);
+        if (wizard == null || wizard.wizardState() == null || !wizard.wizardState().awaitingTextInput())
+            return;
+        event.setCancelled(true);
+
+        final var text = PlainTextComponentSerializer.plainText().serialize(event.message());
+
+        Bukkit.getScheduler().runTask((Slabby) api, () -> {
+            final var current = api.operations().wizards().get(uniqueId);
+            if (current == null || current.wizardState() == null || !current.wizardState().awaitingTextInput())
                 return;
 
-            final var text = event.getMessage();
-
             try {
-                switch (wizard.wizardState()) {
-                    case AWAITING_NOTE -> wizard.note(text);
+                switch (current.wizardState()) {
+                    case AWAITING_NOTE -> current.note(text);
                     case AWAITING_BUY_PRICE -> {
                         final var buyPrice = getAndCheckPrice(Double.parseDouble(text));
-                        wizard.buyPrice(buyPrice == -1 ? null : buyPrice);
+                        current.buyPrice(buyPrice == -1 ? null : buyPrice);
                     }
                     case AWAITING_SELL_PRICE -> {
                         final var sellPrice = getAndCheckPrice(Double.parseDouble(text));
-                        wizard.sellPrice(sellPrice == -1 ? null : sellPrice);
+                        current.sellPrice(sellPrice == -1 ? null : sellPrice);
                     }
                     case AWAITING_QUANTITY, AWAITING_TEMP_QUANTITY -> {
                         final var quantity = Integer.parseInt(text);
-                        final var item = api.serialization().<ItemStack>deserialize(wizard.item());
+                        final var item = api.serialization().<ItemStack>deserialize(current.item());
 
                         final var maxQuantity = 36 * item.getMaxStackSize();
 
                         if (quantity < 1 || quantity > maxQuantity)
                             throw new FaultException(api.messages().modify().quantity().minMax(maxQuantity));
 
-                        wizard.quantity(quantity);
+                        current.quantity(quantity);
                     }
                 }
 
-                api.sound().play(event.getPlayer().getUniqueId(), wizard.x(), wizard.y(), wizard.z(), wizard.world(), Sounds.MODIFY_SUCCESS);
+                api.sound().play(uniqueId, current.x(), current.y(), current.z(), current.world(), Sounds.MODIFY_SUCCESS);
             } catch (final NumberFormatException e) {
-                event.getPlayer().sendMessage(api.messages().modify().invalidNumber());
-                api.sound().play(event.getPlayer().getUniqueId(), wizard.x(), wizard.y(), wizard.z(), wizard.world(), Sounds.BLOCKED);
+                player.sendMessage(api.messages().modify().invalidNumber());
+                api.sound().play(uniqueId, current.x(), current.y(), current.z(), current.world(), Sounds.BLOCKED);
             } catch (final FaultException e) {
-                event.getPlayer().sendMessage(e.component());
-                api.sound().play(event.getPlayer().getUniqueId(), wizard.x(), wizard.y(), wizard.z(), wizard.world(), Sounds.BLOCKED);
+                player.sendMessage(e.component());
+                api.sound().play(uniqueId, current.x(), current.y(), current.z(), current.world(), Sounds.BLOCKED);
             }
 
-            if (wizard.wizardState() == ShopWizard.WizardState.AWAITING_TEMP_QUANTITY)
-                OwnerShopUI.open(api, event.getPlayer(), wizard.shop());
+            if (current.wizardState() == ShopWizard.WizardState.AWAITING_TEMP_QUANTITY)
+                OwnerShopUI.open(api, player, current.shop());
             else
-                ModifyShopUI.open(api, event.getPlayer(), wizard);
+                ModifyShopUI.open(api, player, current);
 
-            wizard.wizardState(ShopWizard.WizardState.AWAITING_CONFIRMATION);
-
-            event.setCancelled(true);
+            current.wizardState(ShopWizard.WizardState.AWAITING_CONFIRMATION);
         });
     }
 
