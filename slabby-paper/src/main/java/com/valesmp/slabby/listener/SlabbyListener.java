@@ -329,6 +329,46 @@ public final class SlabbyListener implements Listener {
         api.operations().wizards().remove(event.getPlayer().getUniqueId());
     }
 
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    private void onInventoryOpen(final InventoryOpenEvent event) {
+        if (!(event.getPlayer() instanceof Player player))
+            return;
+
+        if (event.getInventory().getType() != InventoryType.CHEST)
+            return;
+
+        final var location = event.getInventory().getLocation();
+        if (location == null)
+            return;
+
+        final Optional<Shop> shopOpt;
+        try {
+            shopOpt = api.repository().shopWithInventoryAt(
+                    location.getBlockX(),
+                    location.getBlockY(),
+                    location.getBlockZ(),
+                    location.getWorld().getName());
+        } catch (final SlabbyException e) {
+            api.exceptionService().logToConsole("Error checking for linked shop on inventory open", e);
+            return;
+        }
+
+        if (shopOpt.isEmpty())
+            return;
+
+        final var shop = shopOpt.get();
+        final var uniqueId = player.getUniqueId();
+
+        if (shop.isOwner(uniqueId) || api.isAdminMode(uniqueId))
+            return;
+
+        event.setCancelled(true);
+        player.sendMessage(text("[Slabby] ", NamedTextColor.YELLOW)
+                .append(text("This chest belongs to a shop and is not yours to open.", NamedTextColor.RED)));
+        api.sound().play(uniqueId, location.getBlockX(), location.getBlockY(), location.getBlockZ(),
+                location.getWorld().getName(), Sounds.BLOCKED);
+    }
+
     private double getAndCheckPrice(final double price) {
         final var check = BigDecimal.valueOf(price);
 
@@ -377,39 +417,83 @@ public final class SlabbyListener implements Listener {
             return;
 
         final var shop = shopOpt.get();
+
+        if (shop.stock() == null)
+            return;
+
         final var shopItem = api.serialization().<ItemStack>deserialize(shop.item());
 
         // only process if the item being moved matches the shop item - issimilar is modern approach ?
         if (!shopItem.isSimilar(event.getItem()))
             return;
 
-        //TODO: ensure shop is not full, use same security measures as deposit function
-        if (restock.chests().hoppers().batches() && shopItem.getMaxStackSize() > 1) {
-            final var amount = Math.min(shopItem.getMaxStackSize(), shop.quantity());
-            shopItem.setAmount(amount - 1);
+        final int maxStock = api.configuration().maxStock();
+        final int currentStock = shop.stock();
+        final int headroom = Math.max(0, maxStock - currentStock);
 
-            if (destination.containsAtLeast(shopItem, shopItem.getAmount())) {
-                shop.stock(shop.stock() + amount);
+        if (headroom == 0)
+            return;
+
+        if (restock.chests().hoppers().batches() && shopItem.getMaxStackSize() > 1) {
+            final var batchSize = Math.min(shopItem.getMaxStackSize(), shop.quantity());
+
+            if (batchSize > headroom)
+                return;
+
+            final var batchProbe = shopItem.clone();
+            batchProbe.setAmount(batchSize - 1);
+
+            if (destination.containsAtLeast(batchProbe, batchProbe.getAmount())) {
+                final int newStock;
+                try {
+                    newStock = Math.addExact(currentStock, batchSize);
+                } catch (final ArithmeticException e) {
+                    return;
+                }
+
+                shop.stock(Math.min(newStock, maxStock));
 
                 try {
                     api.repository().update(shop);
                     event.setItem(ItemStack.empty());
-                    destination.remove(shopItem);
+                    final var removeStack = shopItem.clone();
+                    removeStack.setAmount(batchSize - 1);
+                    destination.remove(removeStack);
                 } catch (final SlabbyException e) {
                     api.exceptionService().logToConsole("Error while attempting to update shop from linked inventory", e);
                 }
             }
         } else {
-            shop.stock(shop.stock() + event.getItem().getAmount());
+            final int incoming = event.getItem().getAmount();
+            final int accepted = Math.min(incoming, headroom);
+
+            if (accepted <= 0)
+                return;
+
+            final int newStock;
+            try {
+                newStock = Math.addExact(currentStock, accepted);
+            } catch (final ArithmeticException e) {
+                return;
+            }
+
+            shop.stock(Math.min(newStock, maxStock));
 
             try {
                 api.repository().update(shop);
-                event.setItem(ItemStack.empty());
+
+                if (accepted >= incoming) {
+                    event.setItem(ItemStack.empty());
+                } else {
+                    final var leftover = event.getItem().clone();
+                    leftover.setAmount(incoming - accepted);
+                    event.setItem(leftover);
+                }
             } catch (final SlabbyException e) {
                 api.exceptionService().logToConsole("Error while attempting to update shop from linked inventory", e);
             }
         }
-        
+
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)

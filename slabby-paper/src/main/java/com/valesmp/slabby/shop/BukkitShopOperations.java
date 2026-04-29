@@ -89,13 +89,9 @@ public final class BukkitShopOperations implements ShopOperations {
 
         final var itemStack = api.serialization().<ItemStack>deserialize(shop.item());
 
-        // check inventory space BEFORE taking the player's money — otherwise a buyer with no room
-        // pays for items they never receive (no refund path)
         if (!ItemHelper.hasSpace(client.getInventory(), itemStack, shop.quantity()))
             throw new PlayerOutOfInventorySpaceException();
 
-        // pre-check balance so we don't even attempt withdraw on a broke buyer; the actual
-        // economy.withdraw is still authoritative below
         if (!api.economy().hasAmount(uniqueId, shop.buyPrice()))
             throw new InsufficientBalanceToBuyException();
 

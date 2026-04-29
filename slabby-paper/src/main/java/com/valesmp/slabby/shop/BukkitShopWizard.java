@@ -80,7 +80,13 @@ public final class BukkitShopWizard implements ShopWizard {
 
     @Override
     public ShopWizard location(final Integer x, final Integer y, final Integer z, final String world) {
-        if (!Objects.equals(this.x, x) && !Objects.equals(this.y, y) && !Objects.equals(this.z, z) && Objects.equals(this.world, world))
+        // any coordinate or the world differing counts as a location change
+        final var changed = !Objects.equals(this.x, x)
+                || !Objects.equals(this.y, y)
+                || !Objects.equals(this.z, z)
+                || !Objects.equals(this.world, world);
+
+        if (changed)
             this.valueChanges.put(ShopLog.Action.LOCATION_CHANGED, new LocationChanged(x, y, z, world));
         else
             this.valueChanges.remove(ShopLog.Action.LOCATION_CHANGED);

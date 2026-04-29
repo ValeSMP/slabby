@@ -134,6 +134,7 @@ public final class SlabbyCommand extends BaseCommand {
     @Subcommand("setowner")
     @Syntax("<player>")
     @CommandPermission(SlabbyPermissions.ADMIN_SET_OWNER)
+    @CommandCompletion("@players")
     @Description("Transfer shop ownership to another player")
     private void onSetOwner(final Player admin, final String targetName) {
         // must be an admin, and must be lookin at a slabby
@@ -147,33 +148,42 @@ public final class SlabbyCommand extends BaseCommand {
         // shop getter
         final var shopOpt = api.repository().shopAt(
                 block.getX(), block.getY(), block.getZ(), block.getWorld().getName());
-        
+
         if (shopOpt.isEmpty()) {
             admin.sendMessage(text("[Slabby] ", NamedTextColor.YELLOW)
                     .append(text("No shop found at this location!", NamedTextColor.RED)));
             return;
         }
 
-        final var shop = shopOpt.get();
+        // getOfflinePlayer fabricates a fresh UUID for unknown names; reject those before they brick the shop
         final var targetPlayer = Bukkit.getOfflinePlayer(targetName);
+        if (!targetPlayer.hasPlayedBefore() && targetPlayer.getPlayer() == null) {
+            admin.sendMessage(text("[Slabby] ", NamedTextColor.YELLOW)
+                    .append(text("No player named ", NamedTextColor.RED))
+                    .append(text(targetName, NamedTextColor.GOLD))
+                    .append(text(" has joined this server.", NamedTextColor.RED)));
+            return;
+        }
 
-        // clear the existing owner(s)
-        shop.owners().clear();
+        final var shop = shopOpt.get();
 
-        // add new single owner with 100% share TODO: allowance for adding multiple users and determining a share
-        shop.owners().add(api.repository().<ShopOwner.Builder>builder(ShopOwner.Builder.class)
-                .uniqueId(targetPlayer.getUniqueId())
-                .share(100)
-                .build());
-
-        // save changes
         try {
-            api.repository().update(shop);
+            // TODO: support multi-owner with custom shares
+            api.repository().transaction(() -> {
+                shop.owners().clear();
+                shop.owners().add(api.repository().<ShopOwner.Builder>builder(ShopOwner.Builder.class)
+                        .uniqueId(targetPlayer.getUniqueId())
+                        .share(100)
+                        .build());
+                api.repository().update(shop);
+                return null;
+            });
+
             admin.sendMessage(text("[Slabby] ", NamedTextColor.YELLOW)
                     .append(text("Shop ownership transferred to ", NamedTextColor.GREEN))
                     .append(text(targetName, NamedTextColor.GOLD))
                     .append(text("!", NamedTextColor.GREEN)));
-        } catch (SlabbyException e) {
+        } catch (final SlabbyException e) {
             admin.sendMessage(text("[Slabby] ", NamedTextColor.YELLOW)
                     .append(text("Error transferring ownership: " + e.getMessage(), NamedTextColor.RED)));
         }
