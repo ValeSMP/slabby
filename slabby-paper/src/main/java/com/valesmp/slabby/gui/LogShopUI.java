@@ -3,88 +3,136 @@ package com.valesmp.slabby.gui;
 import com.valesmp.slabby.SlabbyAPI;
 import com.valesmp.slabby.audit.Auditable;
 import com.valesmp.slabby.shop.Shop;
+import com.valesmp.slabby.shop.ShopLog;
 import com.valesmp.slabby.shop.log.LocationChanged;
 import com.valesmp.slabby.shop.log.Transaction;
 import com.valesmp.slabby.shop.log.ValueChanged;
 
+import dev.hxrry.hxgui.builders.ItemBuilder;
+import dev.hxrry.hxgui.components.Pagination;
+import dev.hxrry.hxgui.core.MenuItem;
+
 import lombok.experimental.UtilityClass;
 
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 
-import dev.hxrry.hxgui.builders.GUIBuilder;
-import dev.hxrry.hxgui.builders.ItemBuilder;
-
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Set;
 
-// TODO: implement pagination into hxgui?
+// 1.3 changes: replaced manual pagination with HxGUI's Pagination component, added category filter row
 // 1.1>2 changes inc. no pagedgui or invui, addition of temporary manual pagination, recursive reopening, max items per page, prev and next buttons conditionally showing and createdLogItem extracted helper method because pretty
-
 @UtilityClass
 public final class LogShopUI {
 
-    //TODO: category menu
-    private static final int ITEMS_PER_PAGE = 45;
+    public enum Filter {
+        ALL("All", Material.BOOKSHELF, EnumSet.allOf(ShopLog.Action.class)),
+        TRADES("Trades", Material.GOLD_INGOT, EnumSet.of(
+                ShopLog.Action.BUY,
+                ShopLog.Action.SELL)),
+        STOCK("Stock", Material.CHEST, EnumSet.of(
+                ShopLog.Action.DEPOSIT,
+                ShopLog.Action.WITHDRAW)),
+        CHANGES("Changes", Material.WRITABLE_BOOK, EnumSet.of(
+                ShopLog.Action.BUY_PRICE_CHANGED,
+                ShopLog.Action.SELL_PRICE_CHANGED,
+                ShopLog.Action.QUANTITY_CHANGED,
+                ShopLog.Action.NOTE_CHANGED,
+                ShopLog.Action.NAME_CHANGED,
+                ShopLog.Action.LOCATION_CHANGED,
+                ShopLog.Action.INVENTORY_LINK_CHANGED,
+                ShopLog.Action.OWNER_ADDED,
+                ShopLog.Action.OWNER_REMOVED,
+                ShopLog.Action.SHOP_CREATED,
+                ShopLog.Action.SHOP_DESTROYED));
 
-    public void open(final SlabbyAPI api, final Player shopOwner, final Shop shop) {
-        open(api, shopOwner, shop, 0);
+        private final String label;
+        private final Material icon;
+        private final Set<ShopLog.Action> actions;
+
+        Filter(final String label, final Material icon, final Set<ShopLog.Action> actions) {
+            this.label = label;
+            this.icon = icon;
+            this.actions = actions;
+        }
+
+        public boolean accepts(final ShopLog.Action action) {
+            return this.actions.contains(action);
+        }
     }
 
-    public void open(final SlabbyAPI api, final Player shopOwner, final Shop shop, final int page) {
-        // get all logs, sort by date with newest first as default
-        final var allLogs = shop.logs().stream()
+    private static final int FILTER_TRADES_SLOT = 47;
+    private static final int FILTER_STOCK_SLOT = 48;
+    private static final int FILTER_ALL_SLOT = 50;
+    private static final int FILTER_CHANGES_SLOT = 51;
+
+    public void open(final SlabbyAPI api, final Player shopOwner, final Shop shop) {
+        open(api, shopOwner, shop, Filter.ALL);
+    }
+
+    public void open(final SlabbyAPI api, final Player shopOwner, final Shop shop, final Filter filter) {
+        final var filteredLogs = shop.logs().stream()
+                .filter(log -> filter.accepts(log.action()))
                 .sorted(Comparator.comparing(Auditable::createdOn, Comparator.reverseOrder()))
                 .toList();
 
-        // calculate pagination
-        final int totalPages = (int) Math.ceil((double) allLogs.size() / ITEMS_PER_PAGE);
-        final int currentPage = Math.max(0, Math.min(page, totalPages - 1));
-        final int startIndex = currentPage * ITEMS_PER_PAGE;
-        final int endIndex = Math.min(startIndex + ITEMS_PER_PAGE, allLogs.size());
+        final var menuItems = new ArrayList<MenuItem>(filteredLogs.size());
+        for (final var log : filteredLogs)
+            menuItems.add(new MenuItem(createLogItem(api, log)));
 
-        // get logs for current page
-        final var pageLogs = allLogs.subList(startIndex, endIndex);
+        final var pagination = new Pagination(api.messages().log().title(), 6);
+        pagination.contentArea(0, 44).navigationSlots(45, 53, 49);
+        pagination.setItems(menuItems);
+        pagination.open(shopOwner);
 
-        // build gui
-        final var builder = GUIBuilder.chest()
-                .title(api.messages().log().title())
-                .rows(6);
-
-        // add log items
-        int slot = 0;
-        for (var log : pageLogs) {
-            builder.item(slot++, createLogItem(api, log));
+        final var personalMenu = pagination.getMenu();
+        for (final var f : Arrays.asList(Filter.TRADES, Filter.STOCK, Filter.ALL, Filter.CHANGES)) {
+            personalMenu.setItemFor(shopOwner, slotFor(f), new MenuItem(
+                    createFilterButton(f, filter == f),
+                    event -> open(api, shopOwner, shop, f)));
         }
-
-        // row 6 is nav controls in 45-53
-        // slot 48 is prev page
-        if (currentPage > 0) {
-            builder.item(48, ItemBuilder.of(Material.RED_STAINED_GLASS_PANE)
-                    .name(api.messages().general().previousPage())
-                    .build(),
-                    event -> open(api, shopOwner, shop, currentPage - 1));
-        }
-
-        if (currentPage < totalPages - 1) {
-            builder.item(50, ItemBuilder.of(Material.RED_STAINED_GLASS_PANE)
-                    .name(api.messages().general().nextPage())
-                    .build(),
-                    event -> open(api, shopOwner, shop, currentPage + 1));
-        }
-
-        builder.open(shopOwner);
     }
 
-    private ItemStack createLogItem(final SlabbyAPI api, final com.valesmp.slabby.shop.ShopLog log) {
+    private int slotFor(final Filter filter) {
+        return switch (filter) {
+            case ALL -> FILTER_ALL_SLOT;
+            case TRADES -> FILTER_TRADES_SLOT;
+            case STOCK -> FILTER_STOCK_SLOT;
+            case CHANGES -> FILTER_CHANGES_SLOT;
+        };
+    }
+
+    private ItemStack createFilterButton(final Filter filter, final boolean active) {
+        final var builder = ItemBuilder.of(filter.icon)
+                .name(Component.text(filter.label, active ? NamedTextColor.GREEN : NamedTextColor.YELLOW));
+
+        if (active) {
+            builder.lore(List.of(Component.text("Active filter", NamedTextColor.GRAY)))
+                    .enchant(Enchantment.UNBREAKING, 1)
+                    .flags(ItemFlag.HIDE_ENCHANTS);
+        } else {
+            builder.lore(List.of(Component.text("Click to filter", NamedTextColor.GRAY)));
+        }
+
+        return builder.build();
+    }
+
+    private ItemStack createLogItem(final SlabbyAPI api, final ShopLog log) {
         final var item = new ItemStack(Material.PAPER);
         final var meta = item.getItemMeta();
         final var lore = new ArrayList<Component>();
-            
+
         //TODO: use display name
         final var player = Bukkit.getOfflinePlayer(log.uniqueId());
         lore.add(api.messages().log().player(Component.text(player.getName())));
