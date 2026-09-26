@@ -3,6 +3,8 @@ plugins {
     checkstyle
 }
 
+val lombok = libs.lombok
+
 subprojects {
     apply(plugin = "java-library")
 
@@ -10,11 +12,11 @@ subprojects {
     version = providers.gradleProperty("slabby_version").get()
 
     dependencies {
-        compileOnly("org.projectlombok:lombok:1.18.40")
-        annotationProcessor("org.projectlombok:lombok:1.18.40")
+        compileOnly(lombok)
+        annotationProcessor(lombok)
 
-        testCompileOnly("org.projectlombok:lombok:1.18.40")
-        testAnnotationProcessor("org.projectlombok:lombok:1.18.40")
+        testCompileOnly(lombok)
+        testAnnotationProcessor(lombok)
     }
 
     java {

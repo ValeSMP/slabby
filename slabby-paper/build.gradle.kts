@@ -30,6 +30,13 @@ tasks.shadowJar {
     archiveFileName = "slabby-paper-${providers.gradleProperty("minecraft_version").get()}-${project.version}.jar"
 }
 
+tasks.processResources {
+    inputs.property("version", project.version)
+    filesMatching("plugin.yml") {
+        expand("version" to project.version)
+    }
+}
+
 tasks.build {
     dependsOn(tasks.shadowJar)
 }

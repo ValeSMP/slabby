@@ -1,8 +1,8 @@
 name: Slabby
-version: 1.2.1
+version: '${version}'
 main: com.valesmp.slabby.Slabby
 api-version: '26.1'
-author: ValesSMP
+authors: [hxrry, Refurbishment]
 description: A shop plugin for Paper servers
 website: https://github.com/ValeSMP/slabby
 

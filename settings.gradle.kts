@@ -5,7 +5,6 @@ include("slabby-api", "slabby-sqlite3", "slabby-paper")
 dependencyResolutionManagement {
     @Suppress("UnstableApiUsage")
     repositories {
-        mavenLocal()
         mavenCentral()
         maven("https://repo.papermc.io/repository/maven-public/")
         maven("https://hub.spigotmc.org/nexus/content/groups/public/")
@@ -13,5 +12,9 @@ dependencyResolutionManagement {
         maven("https://repo.aikar.co/content/groups/aikar/")
         maven("https://jitpack.io")
         maven("https://repo.hxrry.dev/snapshots")
+
+        mavenLocal {
+            content { includeGroup("dev.hxrry") }
+        }
     }
 }
