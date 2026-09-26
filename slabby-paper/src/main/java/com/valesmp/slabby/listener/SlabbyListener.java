@@ -716,8 +716,9 @@ public final class SlabbyListener implements Listener {
         
         // Process the restocking
         try {
-            updateShopStockFromChest(shop, event.getInventory());
-            
+            if (updateShopStockFromChest(shop, event.getInventory()) == 0)
+                return;
+
             // Only send success message if player is still online (not disconnected)
             if (player.isOnline() && event.getReason() == InventoryCloseEvent.Reason.PLAYER) {
                 player.sendMessage(text("[Slabby] ", NamedTextColor.GREEN)
@@ -740,54 +741,39 @@ public final class SlabbyListener implements Listener {
         }
     }
 
-    private void updateShopStockFromChest(final Shop shop, final Inventory chestInventory) throws SlabbyException {
+    private int updateShopStockFromChest(final Shop shop, final Inventory chestInventory) throws SlabbyException {
         api.repository().refresh(shop);
-        
+
         final var shopItem = api.serialization().<ItemStack>deserialize(shop.item());
-        
-        // Bukkit.getLogger().info("[DEBUG] updateShopStockFromChest called for shop " + shop.id());
-        // Bukkit.getLogger().info("[DEBUG] Looking for item: " + shopItem.getType());
-        
-        int totalInChest = 0;
-        for (ItemStack item : chestInventory.getContents()) {
-            if (item != null && shopItem.isSimilar(item)) {
-                totalInChest += item.getAmount();
-                // Bukkit.getLogger().info("[DEBUG] Found stack: " + item.getAmount());
-            }
-        }
-        
-        // Bukkit.getLogger().info("[DEBUG] Total items in chest: " + totalInChest);
-        
-        if (totalInChest == 0) {
-            // Bukkit.getLogger().info("[DEBUG] No items found - exiting");
-            return;
-        }
-        
-        int oldStock = shop.stock();
-        int newStock = oldStock + totalInChest;
-        
-        // Bukkit.getLogger().info("[DEBUG] Old stock: " + oldStock + ", New stock: " + newStock);
-        
-        if (newStock > api.configuration().maxStock()) {
-            newStock = api.configuration().maxStock();
-            // Bukkit.getLogger().info("[DEBUG] Capped at max stock: " + newStock);
-        }
-        
-        shop.stock(newStock);
-        // Bukkit.getLogger().info("[DEBUG] Set shop stock to: " + newStock);
-        
+        final var inChest = ItemHelper.countSimilar(chestInventory, shopItem);
+        final var space = api.configuration().maxStock() - shop.stock();
+
+        // only take what fits, anything over max stock stays in the chest
+        final var accepted = Math.min(inChest, space);
+
+        if (accepted <= 0)
+            return 0;
+
+        shop.stock(shop.stock() + accepted);
         api.repository().update(shop);
-        // Bukkit.getLogger().info("[DEBUG] Updated shop in database");
-        
-        // FIXED: Remove ALL matching items properly by iterating through slots
-        for (int i = 0; i < chestInventory.getSize(); i++) {
-            ItemStack item = chestInventory.getItem(i);
-            if (item != null && shopItem.isSimilar(item)) {
-                chestInventory.setItem(i, null); // Clear the slot
-                // Bukkit.getLogger().info("[DEBUG] Removed stack from slot " + i);
-            }
+
+        var left = accepted;
+
+        for (int i = 0; i < chestInventory.getSize() && left > 0; i++) {
+            final var item = chestInventory.getItem(i);
+
+            if (item == null || !shopItem.isSimilar(item))
+                continue;
+
+            final var take = Math.min(left, item.getAmount());
+
+            item.setAmount(item.getAmount() - take);
+            chestInventory.setItem(i, item);
+
+            left -= take;
         }
-        // Bukkit.getLogger().info("[DEBUG] All matching items removed from chest");
+
+        return accepted;
     }
 }
 
