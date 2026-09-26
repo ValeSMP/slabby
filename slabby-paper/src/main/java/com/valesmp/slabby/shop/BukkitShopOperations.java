@@ -134,9 +134,12 @@ public final class BukkitShopOperations implements ShopOperations {
         if (shop.stock() != null) {
             for (final var shopOwner : shop.owners()) {
                 final var playerOwner = Bukkit.getPlayer(shopOwner.uniqueId());
+                final var ownerCut = shop.buyPrice() * shopOwner.share() * 0.01;
 
                 if (playerOwner != null) {
                     playerOwner.sendMessage(api.messages().client().buy().messageOwner(client.displayName(), shop.quantity(), itemStack.displayName(), shop.buyPrice()));
+                } else {
+                    enqueueOfflineNotification(shopOwner.uniqueId(), ShopLog.Action.BUY, shop.quantity(), ownerCut);
                 }
             }
         }
@@ -212,11 +215,22 @@ public final class BukkitShopOperations implements ShopOperations {
         if (shop.stock() != null) {
             for (final var shopOwner : shop.owners()) {
                 final var playerOwner = Bukkit.getPlayer(shopOwner.uniqueId());
+                final var ownerCut = shop.sellPrice() * shopOwner.share() * 0.01;
 
                 if (playerOwner != null) {
-                    playerOwner.sendMessage(api.messages().client().sell().messageOwner(client.displayName(), shop.quantity(), itemStack.displayName(), shop.buyPrice()));
+                    playerOwner.sendMessage(api.messages().client().sell().messageOwner(client.displayName(), shop.quantity(), itemStack.displayName(), shop.sellPrice()));
+                } else {
+                    enqueueOfflineNotification(shopOwner.uniqueId(), ShopLog.Action.SELL, shop.quantity(), ownerCut);
                 }
             }
+        }
+    }
+
+    private void enqueueOfflineNotification(final UUID recipient, final ShopLog.Action action, final int quantity, final double amount) {
+        try {
+            api.repository().enqueueNotification(recipient, action, quantity, amount);
+        } catch (final SlabbyException e) {
+            api.exceptionService().logToConsole("Error enqueueing offline notification", e);
         }
     }
 

@@ -15,6 +15,8 @@ public interface EconomyWrapper {
 
     ActionResult deposit(final UUID uniqueId, final double amount);
 
+    String format(final double amount);
+
     record ActionResult(double amount, double balance, boolean success) {}
 
 }

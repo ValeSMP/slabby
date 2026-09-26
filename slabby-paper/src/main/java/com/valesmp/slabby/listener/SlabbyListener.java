@@ -8,7 +8,10 @@ import com.valesmp.slabby.gui.*;
 import com.valesmp.slabby.helper.BlockHelper;
 import com.valesmp.slabby.helper.ItemHelper;
 import com.valesmp.slabby.permission.SlabbyPermissions;
+import com.valesmp.slabby.shop.PendingNotification;
 import com.valesmp.slabby.shop.Shop;
+import com.valesmp.slabby.shop.ShopLog;
+import com.valesmp.slabby.shop.ShopRepository;
 import com.valesmp.slabby.shop.ShopWizard;
 import com.valesmp.slabby.wrapper.sound.Sounds;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +30,7 @@ import io.papermc.paper.event.player.AsyncChatEvent;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
@@ -37,6 +41,7 @@ import static net.kyori.adventure.text.Component.text;
 
 
 import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -327,6 +332,62 @@ public final class SlabbyListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST)
     private void onPlayerQuit(final PlayerQuitEvent event) {
         api.operations().wizards().remove(event.getPlayer().getUniqueId());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    private void onPlayerJoin(final PlayerJoinEvent event) {
+        final var player = event.getPlayer();
+        final var uniqueId = player.getUniqueId();
+
+        // delay so the player sees the digest after join messages settle
+        Bukkit.getScheduler().runTaskLater((Slabby) api, () -> {
+            if (!player.isOnline())
+                return;
+
+            final Collection<PendingNotification> drained;
+            try {
+                drained = api.repository().drainNotifications(uniqueId);
+            } catch (final SlabbyException e) {
+                api.exceptionService().logToConsole("Error draining offline notifications", e);
+                return;
+            }
+
+            // drain first no matter what, otherwise people without the notify perm just pile up rows forever
+            if (drained.isEmpty() || !api.permission().hasPermission(uniqueId, SlabbyPermissions.SHOP_NOTIFY))
+                return;
+
+            int buyCount = 0;
+            int buyItems = 0;
+            double earned = 0;
+            int sellCount = 0;
+            int sellItems = 0;
+            double paid = 0;
+
+            for (final var n : drained) {
+                if (n.action() == ShopLog.Action.BUY) {
+                    buyCount++;
+                    buyItems += n.quantity();
+                    earned += n.amount();
+                } else if (n.action() == ShopLog.Action.SELL) {
+                    sellCount++;
+                    sellItems += n.quantity();
+                    paid += n.amount();
+                }
+            }
+
+            final var messages = api.messages().offline();
+
+            if (drained.size() >= ShopRepository.OFFLINE_NOTIFICATION_CAP)
+                player.sendMessage(messages.headerCapped(ShopRepository.OFFLINE_NOTIFICATION_CAP));
+            else
+                player.sendMessage(messages.header());
+
+            if (buyCount > 0)
+                player.sendMessage(messages.sales(buyCount, buyItems, api.economy().format(earned)));
+
+            if (sellCount > 0)
+                player.sendMessage(messages.purchases(sellCount, sellItems, api.economy().format(paid)));
+        }, 40L);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)

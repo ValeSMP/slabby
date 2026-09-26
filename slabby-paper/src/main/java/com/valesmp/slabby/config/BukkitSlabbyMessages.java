@@ -26,6 +26,7 @@ public final class BukkitSlabbyMessages implements SlabbyMessages {
     private BukkitGeneral general;
     private BukkitCommandBlock commandBlock;
     private BukkitCommand command;
+    private BukkitOffline offline = new BukkitOffline();
 
     @ConfigSerializable
     @Accessors(fluent = true, chain = false)
@@ -1128,6 +1129,42 @@ public final class BukkitSlabbyMessages implements SlabbyMessages {
         @Override
         public Component shopOutOfSpace() {
             return MiniMessage.miniMessage().deserialize(this.shopOutOfSpace);
+        }
+    }
+
+    // defaults here so older messages.yml files without this section dont break
+    @ConfigSerializable
+    final static class BukkitOffline implements Offline {
+
+        private String header = "<yellow>[Slabby]</yellow> <gray>Activity while you were offline:</gray>";
+        private String headerCapped = "<yellow>[Slabby]</yellow> <gray>Activity while you were offline (<cap>+ events, older ones weren't kept):</gray>";
+        private String sales = "<dark_gray> • </dark_gray><green>Sales: <count></green> <gray>(<items> items), earned</gray> <gold><earned></gold>";
+        private String purchases = "<dark_gray> • </dark_gray><red>Purchases: <count></red> <gray>(<items> items), paid</gray> <gold><paid></gold>";
+
+        @Override
+        public Component header() {
+            return MiniMessage.miniMessage().deserialize(this.header);
+        }
+
+        @Override
+        public Component headerCapped(final int cap) {
+            return MiniMessage.miniMessage().deserialize(this.headerCapped, Formatter.number("cap", cap));
+        }
+
+        @Override
+        public Component sales(final int count, final int items, final String earned) {
+            return MiniMessage.miniMessage().deserialize(this.sales,
+                    Formatter.number("count", count),
+                    Formatter.number("items", items),
+                    Placeholder.unparsed("earned", earned));
+        }
+
+        @Override
+        public Component purchases(final int count, final int items, final String paid) {
+            return MiniMessage.miniMessage().deserialize(this.purchases,
+                    Formatter.number("count", count),
+                    Formatter.number("items", items),
+                    Placeholder.unparsed("paid", paid));
         }
     }
 

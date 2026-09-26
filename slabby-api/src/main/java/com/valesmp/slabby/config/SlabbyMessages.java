@@ -17,6 +17,7 @@ public interface SlabbyMessages {
     General general();
     CommandBlock commandBlock();
     Command command();
+    Offline offline();
 
     interface Client {
 
@@ -329,6 +330,13 @@ public interface SlabbyMessages {
         Component noInventorySpace();
         Component unrecoverableException();
         Component shopOutOfSpace();
+    }
+
+    interface Offline {
+        Component header();
+        Component headerCapped(final int cap);
+        Component sales(final int count, final int items, final String earned);
+        Component purchases(final int count, final int items, final String paid);
     }
 
 }

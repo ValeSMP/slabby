@@ -41,6 +41,13 @@ public interface ShopRepository {
 
     boolean isShopOrInventory(final int x, final int y, final int z, final String world) throws SlabbyException;
 
+    // max offline notifications kept per player, anything past this gets dropped
+    int OFFLINE_NOTIFICATION_CAP = 1000;
+
+    void enqueueNotification(final UUID recipient, final ShopLog.Action action, final int quantity, final double amount) throws SlabbyException;
+
+    Collection<PendingNotification> drainNotifications(final UUID recipient) throws SlabbyException;
+
     @SuppressWarnings("UnusedReturnValue")
     <T> T transaction(final Callable<T> transaction) throws SlabbyException;
 

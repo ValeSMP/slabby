@@ -26,6 +26,7 @@ public final class SQLiteShopRepository implements ShopRepository, Closeable {
     private final Dao<SQLiteShop, Integer> shopDao;
     private final Dao<SQLiteShopOwner, Integer> shopOwnerDao;
     private final Dao<SQLiteShopLog, Integer> shopLogDao;
+    private final Dao<SQLitePendingNotification, Integer> pendingNotificationDao;
 
     private final ShopCache shopCache;
 
@@ -42,6 +43,7 @@ public final class SQLiteShopRepository implements ShopRepository, Closeable {
         this.shopDao = DaoManager.createDao(this.connectionSource, SQLiteShop.class);
         this.shopOwnerDao = DaoManager.createDao(this.connectionSource, SQLiteShopOwner.class);
         this.shopLogDao = DaoManager.createDao(this.connectionSource, SQLiteShopLog.class);
+        this.pendingNotificationDao = DaoManager.createDao(this.connectionSource, SQLitePendingNotification.class);
 
         this.shopCache = new ShopCache(this.shopDao);
     }
@@ -50,6 +52,7 @@ public final class SQLiteShopRepository implements ShopRepository, Closeable {
         TableUtils.createTableIfNotExists(this.connectionSource, SQLiteShop.class);
         TableUtils.createTableIfNotExists(this.connectionSource, SQLiteShopOwner.class);
         TableUtils.createTableIfNotExists(this.connectionSource, SQLiteShopLog.class);
+        TableUtils.createTableIfNotExists(this.connectionSource, SQLitePendingNotification.class);
     }
 
     @Override
@@ -372,6 +375,46 @@ public final class SQLiteShopRepository implements ShopRepository, Closeable {
             return result != null;
         } catch (final SQLException e) {
             throw new UnrecoverableException("Error while checking if location is a shop or inventory", e);
+        }
+    }
+
+    @Override
+    public void enqueueNotification(final UUID recipient, final ShopLog.Action action, final int quantity, final double amount) throws SlabbyException {
+        try {
+            final var existing = this.pendingNotificationDao.queryBuilder()
+                    .where().eq("recipient", recipient)
+                    .countOf();
+
+            if (existing >= OFFLINE_NOTIFICATION_CAP)
+                return;
+
+            this.pendingNotificationDao.create(SQLitePendingNotification.builder()
+                    .recipient(recipient)
+                    .action(action)
+                    .quantity(quantity)
+                    .amount(amount)
+                    .createdOn(api.legacyNow())
+                    .build());
+        } catch (final SQLException e) {
+            throw new UnrecoverableException("Error while enqueueing pending notification", e);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public Collection<PendingNotification> drainNotifications(final UUID recipient) throws SlabbyException {
+        try {
+            final var rows = this.pendingNotificationDao.queryBuilder()
+                    .where()
+                    .eq("recipient", recipient)
+                    .query();
+
+            if (!rows.isEmpty())
+                this.pendingNotificationDao.delete(rows);
+
+            return (Collection<PendingNotification>) (Collection<? extends PendingNotification>) rows;
+        } catch (final SQLException e) {
+            throw new UnrecoverableException("Error while draining pending notifications", e);
         }
     }
 

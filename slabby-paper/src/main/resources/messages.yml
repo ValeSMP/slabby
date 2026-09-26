@@ -173,3 +173,8 @@ command:
   admin:
     enabled: '<yellow>[Slabby]</yellow> <green>Enabled</green> <gray>admin mode</gray>'
     disabled: '<yellow>[Slabby]</yellow> <red>Disabled</red> <gray>admin mode</gray>'
+offline:
+  header: '<yellow>[Slabby]</yellow> <gray>Activity while you were offline:</gray>'
+  header-capped: '<yellow>[Slabby]</yellow> <gray>Activity while you were offline (<cap>+ events, older ones weren''t kept):</gray>'
+  sales: '<dark_gray> • </dark_gray><green>Sales: <count></green> <gray>(<items> items), earned</gray> <gold><earned></gold>'
+  purchases: '<dark_gray> • </dark_gray><red>Purchases: <count></red> <gray>(<items> items), paid</gray> <gold><paid></gold>'

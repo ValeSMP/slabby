@@ -40,4 +40,9 @@ public final class VaultEconomyWrapper implements EconomyWrapper {
         return new ActionResult(result.amount, result.balance, result.transactionSuccess());
     }
 
+    @Override
+    public String format(final double amount) {
+        return this.economy.format(amount);
+    }
+
 }
