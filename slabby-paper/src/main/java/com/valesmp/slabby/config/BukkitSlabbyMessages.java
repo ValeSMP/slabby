@@ -8,6 +8,7 @@ import net.kyori.adventure.text.minimessage.tag.resolver.Formatter;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.spongepowered.configurate.objectmapping.ConfigSerializable;
 
+import java.time.ZoneId;
 import java.util.Date;
 
 @ConfigSerializable
@@ -647,7 +648,8 @@ public final class BukkitSlabbyMessages implements SlabbyMessages {
 
         @Override
         public Component date(final Date date) {
-            return MiniMessage.miniMessage().deserialize(this.date, Formatter.date("created_on", date.toInstant()));
+            // needs a timezone, apparently a bare Instant cant be formatted as yyyy-MM-dd HH:mm:ss
+            return MiniMessage.miniMessage().deserialize(this.date, Formatter.date("created_on", date.toInstant().atZone(ZoneId.systemDefault())));
         }
     }
 
