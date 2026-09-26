@@ -160,6 +160,18 @@ public interface SlabbyMessages {
             Component title();
         }
 
+        interface ShopCreated {
+            Component title();
+        }
+
+        interface OwnerAdded {
+            Component title();
+        }
+
+        interface OwnerRemoved {
+            Component title();
+        }
+
         Component title();
 
         Buy buy();
@@ -174,6 +186,9 @@ public interface SlabbyMessages {
         NoteChanged noteChanged();
         NameChanged nameChanged();
         ShopDestroyed shopDestroyed();
+        ShopCreated shopCreated();
+        OwnerAdded ownerAdded();
+        OwnerRemoved ownerRemoved();
 
         Component player(final Component displayName);
         Component date(final Date date);

@@ -89,6 +89,12 @@ log:
     to: '<dark_purple>To: <name></dark_purple>'
   shop-destroyed:
     title: '<green>Shop Destroyed</green>'
+  shop-created:
+    title: '<green>Shop Created</green>'
+  owner-added:
+    title: '<green>Owner Added</green>'
+  owner-removed:
+    title: '<green>Owner Removed</green>'
 modify:
   title: '[Slabby] Editing Shop'
   click-to-set: '<dark_purple>Click to set</dark_purple>'

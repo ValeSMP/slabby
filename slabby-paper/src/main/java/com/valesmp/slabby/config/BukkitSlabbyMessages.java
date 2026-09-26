@@ -593,6 +593,44 @@ public final class BukkitSlabbyMessages implements SlabbyMessages {
         private BukkitNameChanged nameChanged;
         private BukkitShopDestroyed shopDestroyed;
 
+        // defaults so older messages.yml files without these dont break
+        private BukkitShopCreated shopCreated = new BukkitShopCreated();
+        private BukkitOwnerAdded ownerAdded = new BukkitOwnerAdded();
+        private BukkitOwnerRemoved ownerRemoved = new BukkitOwnerRemoved();
+
+        @ConfigSerializable
+        final static class BukkitShopCreated implements ShopCreated {
+
+            private String title = "<green>Shop Created</green>";
+
+            @Override
+            public Component title() {
+                return MiniMessage.miniMessage().deserialize(this.title);
+            }
+        }
+
+        @ConfigSerializable
+        final static class BukkitOwnerAdded implements OwnerAdded {
+
+            private String title = "<green>Owner Added</green>";
+
+            @Override
+            public Component title() {
+                return MiniMessage.miniMessage().deserialize(this.title);
+            }
+        }
+
+        @ConfigSerializable
+        final static class BukkitOwnerRemoved implements OwnerRemoved {
+
+            private String title = "<green>Owner Removed</green>";
+
+            @Override
+            public Component title() {
+                return MiniMessage.miniMessage().deserialize(this.title);
+            }
+        }
+
         private String title;
         private String player;
         private String date;

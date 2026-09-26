@@ -88,8 +88,14 @@ public final class LogShopUI {
                 .toList();
 
         final var menuItems = new ArrayList<MenuItem>(filteredLogs.size());
-        for (final var log : filteredLogs)
-            menuItems.add(new MenuItem(createLogItem(api, log)));
+        // one dodgy log row shouldnt take the whole menu down, just skip it
+        for (final var log : filteredLogs) {
+            try {
+                menuItems.add(new MenuItem(createLogItem(api, log)));
+            } catch (final RuntimeException e) {
+                api.logger().warning("Skipping unreadable log entry for shop %d: %s".formatted(shop.<Integer>id(), e.getMessage()));
+            }
+        }
 
         final var pagination = new Pagination(api.messages().log().title(), 6);
         pagination.contentArea(0, 44).navigationSlots(45, 53, 49);
@@ -134,8 +140,8 @@ public final class LogShopUI {
         final var lore = new ArrayList<Component>();
 
         //TODO: use display name
-        final var player = Bukkit.getOfflinePlayer(log.uniqueId());
-        lore.add(api.messages().log().player(Component.text(player.getName())));
+        final var name = Bukkit.getOfflinePlayer(log.uniqueId()).getName();
+        lore.add(api.messages().log().player(Component.text(name != null ? name : "Unknown")));
 
         switch (log.action()) {
             case BUY -> {
@@ -230,10 +236,10 @@ public final class LogShopUI {
                 lore.add(api.messages().log().buyPriceChanged().from(data.from()));
                 lore.add(api.messages().log().buyPriceChanged().to(data.to()));
             }
-            case SHOP_DESTROYED -> {
-                meta.displayName(api.messages().log().shopDestroyed().title());
-            }
-            default -> throw new IllegalArgumentException("Unexpected value: " + log.action());
+            case SHOP_DESTROYED -> meta.displayName(api.messages().log().shopDestroyed().title());
+            case SHOP_CREATED -> meta.displayName(api.messages().log().shopCreated().title());
+            case OWNER_ADDED -> meta.displayName(api.messages().log().ownerAdded().title());
+            case OWNER_REMOVED -> meta.displayName(api.messages().log().ownerRemoved().title());
         }
 
         lore.add(api.messages().log().date(log.createdOn()));
