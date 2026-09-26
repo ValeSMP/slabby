@@ -50,12 +50,25 @@ public final class SlabbyCommand extends BaseCommand {
     @Subcommand("restore")
     @CommandPermission(SlabbyPermissions.SHOP_RESTORE)
     private void onRestore(final Player player, final @Optional String targetName) {
-        if (targetName != null && !player.hasPermission(SlabbyPermissions.ADMIN_RESTORE)) {
-            player.sendMessage(Bukkit.permissionMessage());
-        } else {
-            final var target = targetName != null ? Bukkit.getOfflinePlayer(targetName).getUniqueId() : player.getUniqueId();
-            RestoreShopUI.open(api, player, target);
+        if (targetName == null) {
+            RestoreShopUI.open(api, player, player.getUniqueId());
+            return;
         }
+
+        if (!player.hasPermission(SlabbyPermissions.ADMIN_RESTORE)) {
+            player.sendMessage(Bukkit.permissionMessage());
+            return;
+        }
+
+        // cached lookup only, the normal one can freeze the server asking mojang for unknown names
+        final var target = Bukkit.getOfflinePlayerIfCached(targetName);
+
+        if (target == null) {
+            sendUnknownPlayer(player, targetName);
+            return;
+        }
+
+        RestoreShopUI.open(api, player, target.getUniqueId());
     }
 
     /**
@@ -138,13 +151,11 @@ public final class SlabbyCommand extends BaseCommand {
             return;
         }
 
-        // getOfflinePlayer fabricates a fresh UUID for unknown names; reject those before they brick the shop
-        final var targetPlayer = Bukkit.getOfflinePlayer(targetName);
-        if (!targetPlayer.hasPlayedBefore() && targetPlayer.getPlayer() == null) {
-            admin.sendMessage(text("[Slabby] ", NamedTextColor.YELLOW)
-                    .append(text("No player named ", NamedTextColor.RED))
-                    .append(text(targetName, NamedTextColor.GOLD))
-                    .append(text(" has joined this server.", NamedTextColor.RED)));
+        // cached lookup only, returns null for anyone who hasnt joined instead of asking mojang
+        final var targetPlayer = Bukkit.getOfflinePlayerIfCached(targetName);
+
+        if (targetPlayer == null) {
+            sendUnknownPlayer(admin, targetName);
             return;
         }
 
@@ -170,6 +181,13 @@ public final class SlabbyCommand extends BaseCommand {
             admin.sendMessage(text("[Slabby] ", NamedTextColor.YELLOW)
                     .append(text("Error transferring ownership: " + e.getMessage(), NamedTextColor.RED)));
         }
+    }
+
+    private void sendUnknownPlayer(final Player player, final String name) {
+        player.sendMessage(text("[Slabby] ", NamedTextColor.YELLOW)
+                .append(text("No player named ", NamedTextColor.RED))
+                .append(text(name, NamedTextColor.GOLD))
+                .append(text(" has joined this server.", NamedTextColor.RED)));
     }
 
     private boolean giveCompass(Player player, Shop shop) {

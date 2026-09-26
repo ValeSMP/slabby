@@ -1,7 +1,6 @@
 package com.valesmp.slabby.wrapper.claim;
 
 import com.valesmp.slabby.SlabbyHelper;
-import com.valesmp.slabby.shop.Shop;
 import lombok.RequiredArgsConstructor;
 import me.angeschossen.lands.api.LandsIntegration;
 import me.angeschossen.lands.api.flags.type.Flags;
@@ -14,7 +13,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public final class LandsClaimWrapper implements ClaimWrapper {
 
-    private static final String LANDS_SHOPPING_DISTRICT_NAME = "spawn";
     private static final String LANDS_BLOCK_PLACE_BYPASS = "lands.bypass.block_place";
 
     private final LandsIntegration lands;
@@ -32,18 +30,6 @@ public final class LandsClaimWrapper implements ClaimWrapper {
             return true;
 
         return landWorld.hasRoleFlag(uniqueId, new Location(bukkitWorld, x, y, z), Flags.BLOCK_PLACE);
-    }
-
-    @Override
-    public boolean isInShoppingDistrict(final Shop shop) {
-        final var location = new Location(Bukkit.getWorld(shop.world()), shop.x(), shop.y(), shop.z());
-        final var chunk = location.getChunk();
-
-        //NOTE: getLandByChunk is preferred according to the api, but there is no guarantee the chunk is loaded, thus this.
-        final var land = this.lands.getLandByUnloadedChunk(location.getWorld(), chunk.getX(), chunk.getZ());
-
-        //TODO: Support shops outside of shopping district, different dimensions, etc...
-        return land != null && land.getName().equalsIgnoreCase(LANDS_SHOPPING_DISTRICT_NAME);
     }
 
     @Override

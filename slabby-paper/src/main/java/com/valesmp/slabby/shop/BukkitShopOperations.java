@@ -22,6 +22,7 @@ import org.bukkit.inventory.meta.BlockStateMeta;
 import org.bukkit.persistence.PersistentDataType;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 @RequiredArgsConstructor
@@ -29,7 +30,8 @@ import java.util.function.Consumer;
 public final class BukkitShopOperations implements ShopOperations {
 
     @Getter
-    private final Map<UUID, ShopWizard> wizards = new HashMap<>();
+    // concurrent because the async chat listener reads from it off the main thread
+    private final Map<UUID, ShopWizard> wizards = new ConcurrentHashMap<>();
 
     private final SlabbyAPI api;
 
@@ -450,6 +452,10 @@ public final class BukkitShopOperations implements ShopOperations {
 
     @Override
     public void removeShop(final UUID uniqueId, final Shop shop) throws SlabbyException {
+        // stops a double click on confirm deleting it twice
+        if (shop.state() == Shop.State.DELETED)
+            return;
+
         if (shop.displayEntityId() != null && Bukkit.getEntity(shop.displayEntityId()) instanceof Display e)
             e.remove();
 
