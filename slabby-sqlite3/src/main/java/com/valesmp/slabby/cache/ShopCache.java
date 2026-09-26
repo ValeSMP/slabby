@@ -4,20 +4,16 @@ import com.j256.ormlite.dao.Dao;
 import com.valesmp.slabby.shop.SQLiteShop;
 import com.valesmp.slabby.shop.Shop;
 
-import java.util.Objects;
+public final class ShopCache extends DaoCache<SQLiteShop, Integer, ShopCache.Position> {
 
-public final class ShopCache extends DaoCache<SQLiteShop, Integer, Integer> {
+    public record Position(int x, int y, int z, String world) {}
 
     public ShopCache(final Dao<SQLiteShop, Integer> dao) {
         super(dao, SQLiteShop::id);
     }
 
-    public static int hash(final int x, final int y, final int z, final String world) {
-        return Objects.hash(x, y, z, world);
-    }
-
     public void store(final int x, final int y, final int z, final String world, final Shop shop) {
-        this.store(hash(x, y, z, world), (SQLiteShop) shop);
+        this.store(new Position(x, y, z, world), (SQLiteShop) shop);
     }
 
     public void store(final Shop shop) {
@@ -29,11 +25,11 @@ public final class ShopCache extends DaoCache<SQLiteShop, Integer, Integer> {
     }
 
     public Cached get(final int x, final int y, final int z, final String world) {
-        return get(hash(x, y, z, world));
+        return get(new Position(x, y, z, world));
     }
 
     public void delete(final int x, final int y, final int z, final String world) {
-        this.delete(hash(x, y, z, world));
+        this.delete(new Position(x, y, z, world));
     }
 
 }
