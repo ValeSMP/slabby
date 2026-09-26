@@ -89,17 +89,9 @@ public final class SlabbyCommand extends BaseCommand {
                     continue;
                 }
 
-                // remove any lingering old entities
-                if (shop.displayEntityId() != null) {
-                    final var entity = Bukkit.getEntity(shop.displayEntityId());
-                    if (entity != null) {
-                        entity.remove();
-                    }
-                }
-
-                // regenerate displays, at default spots
-                api.operations().removeAndSpawnDisplayItem(
-                        shop.x(), shop.y(), shop.z(), shop.world(), shop);
+                // save the new display id too, otherwise the cleanup on chunk load thinks the new one is an old leftover
+                api.operations().spawnDisplayItem(shop);
+                api.repository().update(shop);
                 count++;
                 
             } catch (Exception e) {

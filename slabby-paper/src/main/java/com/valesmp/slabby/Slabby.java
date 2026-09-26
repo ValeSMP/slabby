@@ -106,6 +106,9 @@ public final class Slabby extends JavaPlugin implements SlabbyAPI {
     @Getter
     private final NamespacedKey deleteKey = new NamespacedKey(this, "delete");
 
+    @Getter
+    private final NamespacedKey displayKey = new NamespacedKey(this, "display");
+
     @Override
     public void reload() {
         setupConfig();

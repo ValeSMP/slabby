@@ -1,5 +1,6 @@
 package com.valesmp.slabby.shop;
 
+import com.valesmp.slabby.Slabby;
 import com.valesmp.slabby.SlabbyAPI;
 import com.valesmp.slabby.exception.*;
 import com.valesmp.slabby.exception.UnsupportedOperationException;
@@ -18,10 +19,9 @@ import org.bukkit.block.ShulkerBox;
 import org.bukkit.entity.*;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BlockStateMeta;
-import org.bukkit.util.NumberConversions;
+import org.bukkit.persistence.PersistentDataType;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 @RequiredArgsConstructor
@@ -378,11 +378,6 @@ public final class BukkitShopOperations implements ShopOperations {
 
     @Override
     public void createOrUpdateShop(final UUID uniqueId, final ShopWizard wizard) throws SlabbyException {
-        final var oldX = new AtomicReference<Integer>();
-        final var oldY = new AtomicReference<Integer>();
-        final var oldZ = new AtomicReference<Integer>();
-        final var oldWorld = new AtomicReference<String>();
-
         final var success = api.repository().transaction(() -> {
             final var shopOpt = api.repository().shopById(wizard.id());
 
@@ -394,12 +389,6 @@ public final class BukkitShopOperations implements ShopOperations {
                 shop.quantity(wizard.quantity());
                 shop.note(wizard.note());
                 shop.state(wizard.state());
-
-                //NOTE: We need these coordinates in case the chunk with the old display entity isn't loaded
-                oldX.set(shop.x());
-                oldY.set(shop.y());
-                oldZ.set(shop.z());
-                oldWorld.set(shop.world());
 
                 shop.location(wizard.x(), wizard.y(), wizard.z(), wizard.world());
 
@@ -452,7 +441,7 @@ public final class BukkitShopOperations implements ShopOperations {
             if (shopOpt.isPresent()) {
                 final var shop = shopOpt.get();
 
-                removeAndSpawnDisplayItem(oldX.get(), oldY.get(), oldZ.get(), oldWorld.get(), shop);
+                spawnDisplayItem(shop);
 
                 api.repository().update(shop);
             }
@@ -470,32 +459,13 @@ public final class BukkitShopOperations implements ShopOperations {
     }
 
     @Override
-    public void removeAndSpawnDisplayItem(final Integer oldX, final Integer oldY, final Integer oldZ, final String oldWorld, final Shop shop) {
+    public void spawnDisplayItem(final Shop shop) {
+        // if the old one isnt loaded right now it gets cleaned up when its chunk loads, see SlabbyListener#onEntitiesLoad
+        if (shop.displayEntityId() != null && Bukkit.getEntity(shop.displayEntityId()) instanceof Display old)
+            old.remove();
+
         final var item = api.serialization().<ItemStack>deserialize(shop.item());
         final var bukkitWorld = Bukkit.getWorld(shop.world());
-
-        if (shop.displayEntityId() != null && oldX != null && oldY != null && oldZ != null && oldWorld != null) {
-            final var chunkX = NumberConversions.floor(oldX) >> 4;
-            final var chunkZ = NumberConversions.floor(oldZ) >> 4;
-            final var chunkWorld = oldWorld.equals(shop.world()) ? bukkitWorld : Bukkit.getWorld(oldWorld);
-            final var isChunkLoaded = chunkWorld.isChunkLoaded(chunkX, chunkZ);
-
-            try {
-                if (!isChunkLoaded)
-                    chunkWorld.loadChunk(chunkX, chunkZ, false);
-
-                if (Bukkit.getEntity(shop.displayEntityId()) instanceof Display e) {
-                    e.remove();
-                } else {
-                    api.logger().warning("Unable to remove entity %s at %d,%d,%d,%s for shop %d".formatted(shop.displayEntityId(), oldX, oldY, oldZ, oldWorld, shop.<Integer>id()));
-                }
-            } finally {
-                //NOTE: Manually unload chunk if it wasn't loaded.
-                if (!isChunkLoaded)
-                    chunkWorld.unloadChunk(chunkX, chunkZ);
-            }
-        }
-
         final var block = bukkitWorld.getBlockAt(shop.x(), shop.y(), shop.z());
 
         final var itemDisplay = (ItemDisplay) bukkitWorld.spawnEntity(new Location(bukkitWorld, block.getBoundingBox().getCenterX(), block.getBoundingBox().getMaxY(), block.getBoundingBox().getCenterZ()), EntityType.ITEM_DISPLAY);
@@ -504,6 +474,9 @@ public final class BukkitShopOperations implements ShopOperations {
 
         itemDisplay.setItemStack(item);
         itemDisplay.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.GROUND);
+
+        // tag it with the shop id so we can tell which shop it belongs to later
+        itemDisplay.getPersistentDataContainer().set(((Slabby) api).displayKey(), PersistentDataType.INTEGER, shop.<Integer>id());
 
         shop.displayEntityId(itemDisplay.getUniqueId());
     }

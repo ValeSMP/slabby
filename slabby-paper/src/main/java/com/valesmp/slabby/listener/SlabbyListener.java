@@ -25,6 +25,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.*;
 import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
+import org.bukkit.event.world.EntitiesLoadEvent;
 import org.bukkit.event.inventory.*;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -35,6 +36,7 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.persistence.PersistentDataType;
 
 import net.kyori.adventure.text.format.NamedTextColor;
 import static net.kyori.adventure.text.Component.text;
@@ -555,6 +557,32 @@ public final class SlabbyListener implements Listener {
             }
         }
 
+    }
+
+    @EventHandler
+    private void onEntitiesLoad(final EntitiesLoadEvent event) {
+        final var key = ((Slabby) api).displayKey();
+
+        for (final var entity : event.getEntities()) {
+            final var shopId = entity.getPersistentDataContainer().get(key, PersistentDataType.INTEGER);
+
+            if (shopId == null)
+                continue;
+
+            try {
+                final var shop = api.repository().shopById(shopId);
+
+                // only keep it if its the current display of a shop thats still active, anything else is a leftover
+                final var isCurrent = shop.isPresent()
+                        && shop.get().state() == Shop.State.ACTIVE
+                        && entity.getUniqueId().equals(shop.get().displayEntityId());
+
+                if (!isCurrent)
+                    entity.remove();
+            } catch (final SlabbyException e) {
+                api.exceptionService().logToConsole("Error checking shop display entity", e);
+            }
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
