@@ -100,26 +100,33 @@ public final class BukkitShopOperations implements ShopOperations {
         if (!result.success())
             throw new InsufficientBalanceToBuyException();
 
-        if (shop.stock() != null) {
+        if (shop.stock() != null)
             shop.stock(shop.stock() - shop.quantity());
-            final var cost = splitCost(result.amount(), shop);
-            //NOTE: We don't really have a way to guarantee multiple deposits in a transaction like manner.
-            cost.forEach((key, value) -> api.economy().deposit(key, value));
+
+        try {
+            api.repository().transaction(() -> {
+                api.repository().update(shop);
+
+                final var log = api.repository()
+                        .<ShopLog.Builder>builder(ShopLog.Builder.class)
+                        .action(ShopLog.Action.BUY)
+                        .uniqueId(uniqueId)
+                        .serialized(new Transaction(shop.buyPrice(), shop.quantity()))
+                        .build();
+
+                shop.logs().add(log);
+                return null;
+            });
+        } catch (final SlabbyException e) {
+            // save failed so give the buyer their money back and reset the stock
+            api.economy().deposit(uniqueId, result.amount());
+            api.repository().refresh(shop);
+            throw e;
         }
 
-        api.repository().transaction(() -> {
-            api.repository().update(shop);
-
-            final var log = api.repository()
-                    .<ShopLog.Builder>builder(ShopLog.Builder.class)
-                    .action(ShopLog.Action.BUY)
-                    .uniqueId(uniqueId)
-                    .serialized(new Transaction(shop.buyPrice(), shop.quantity()))
-                    .build();
-
-            shop.logs().add(log);
-            return null;
-        });
+        // owners only get paid once the sale is actually saved
+        if (shop.stock() != null)
+            splitCost(result.amount(), shop).forEach((key, value) -> api.economy().deposit(key, value));
 
         addItemToInventory(itemStack, client, shop.quantity());
 
@@ -179,30 +186,46 @@ public final class BukkitShopOperations implements ShopOperations {
             }
         }
 
-        api.repository().transaction(() -> {
-            api.repository().update(shop);
-
-            final var log = api.repository()
-                    .<ShopLog.Builder>builder(ShopLog.Builder.class)
-                    .action(ShopLog.Action.SELL)
-                    .uniqueId(uniqueId)
-                    .serialized(new Transaction(shop.sellPrice(), shop.quantity()))
-                    .build();
-
-            shop.logs().add(log);
-            return null;
-        });
+        final var charged = new HashMap<UUID, Double>();
 
         if (shop.stock() != null) {
-            //NOTE: We don't really have a way to guarantee multiple deposits in a transaction like manner.
-            cost.forEach((key, value) -> api.economy().withdraw(key, value));
+            for (final var entry : cost.entrySet()) {
+                // if any owner cant pay, refund whoever already paid and call it off
+                if (!api.economy().withdraw(entry.getKey(), entry.getValue()).success()) {
+                    refund(charged);
+                    api.repository().refresh(shop);
+                    throw new InsufficientBalanceToSellException();
+                }
+
+                charged.put(entry.getKey(), entry.getValue());
+            }
         }
 
-        api.economy().deposit(uniqueId, shop.sellPrice());
+        try {
+            api.repository().transaction(() -> {
+                api.repository().update(shop);
+
+                final var log = api.repository()
+                        .<ShopLog.Builder>builder(ShopLog.Builder.class)
+                        .action(ShopLog.Action.SELL)
+                        .uniqueId(uniqueId)
+                        .serialized(new Transaction(shop.sellPrice(), shop.quantity()))
+                        .build();
+
+                shop.logs().add(log);
+                return null;
+            });
+        } catch (final SlabbyException e) {
+            refund(charged);
+            api.repository().refresh(shop);
+            throw e;
+        }
 
         itemStack.setAmount(shop.quantity());
 
         client.getInventory().removeItem(itemStack);
+
+        api.economy().deposit(uniqueId, shop.sellPrice());
 
         notifySell(shop, client, itemStack);
     }
@@ -224,6 +247,10 @@ public final class BukkitShopOperations implements ShopOperations {
                 }
             }
         }
+    }
+
+    private void refund(final Map<UUID, Double> charged) {
+        charged.forEach((key, value) -> api.economy().deposit(key, value));
     }
 
     private void enqueueOfflineNotification(final UUID recipient, final ShopLog.Action action, final int quantity, final double amount) {
@@ -550,7 +577,10 @@ public final class BukkitShopOperations implements ShopOperations {
             quantity -= maxStackSize;
         }
 
-        player.getInventory().addItem(itemStacks.toArray(ItemStack[]::new));
+        final var leftover = player.getInventory().addItem(itemStacks.toArray(ItemStack[]::new));
+
+        // anything that didnt fit goes on the floor instead of vanishing
+        leftover.values().forEach(it -> player.getWorld().dropItemNaturally(player.getLocation(), it));
     }
 
 }
