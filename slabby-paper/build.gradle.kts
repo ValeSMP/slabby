@@ -17,6 +17,9 @@ dependencies {
 
     implementation(libs.hxgui)
 
+    // hxgui needs hxcore now but expects slabby to bundle it
+    implementation(libs.hxcore)
+
     compileOnly(libs.lands.api)
 
     implementation(libs.gson)

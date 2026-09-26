@@ -12,6 +12,7 @@ configurate-yaml = "4.2.0"
 lands-api = "7.8.5"
 gson = "2.11.0"
 hxgui = "1.0.0-SNAPSHOT"
+hxcore = "1.0.0-SNAPSHOT"
 
 [libraries]
 adventure = { module = "net.kyori:adventure-api", version.ref = "adventure" }
@@ -26,6 +27,7 @@ configurate-yaml = { module = "org.spongepowered:configurate-yaml", version.ref 
 lands-api = { module = "com.github.angeschossen:LandsAPI", version.ref = "lands-api" }
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 hxgui = { module = "dev.hxrry:hxgui", version.ref = "hxgui" }
+hxcore = { module = "dev.hxrry:hxcore", version.ref = "hxcore" }
 
 
 [bundles]
