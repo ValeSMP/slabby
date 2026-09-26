@@ -16,10 +16,10 @@ public enum OrderBy implements Comparator<Shop>, Predicate<Shop> {
             it.buyPrice() != null && it.hasStock(it.quantity())),
 
     SellAscending(Comparator.comparingDouble(it -> it.sellPrice() / it.quantity()), it ->
-            it.sellPrice() != -1 && it.quantity() > 0),
+            it.sellPrice() != null && it.quantity() > 0),
 
     SellDescending(Comparator.<Shop>comparingDouble(it -> it.sellPrice() / it.quantity()).reversed(), it ->
-            it.sellPrice() != -1 && it.quantity() > 0);
+            it.sellPrice() != null && it.quantity() > 0);
 
     private final Comparator<Shop> comparator;
     private final Predicate<Shop> filter;

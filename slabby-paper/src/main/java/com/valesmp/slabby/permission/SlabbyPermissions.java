@@ -22,6 +22,6 @@ public final class SlabbyPermissions {
     public static final String ADMIN_RESET_DISPLAYS = ADMIN_BASE + "resetdisplays";
     public static final String ADMIN_SET_OWNER = ADMIN_BASE + "setowner";
 
-    public static final String LOCATE_ITEM = SHOP_BASE + "locate";
+    public static final String LOCATE_ITEM = BASE + ".locate.item";
 
 }
