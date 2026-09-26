@@ -130,6 +130,9 @@ public final class ClientShopUI {
         // slot 8; command block (shop info)
         builder.item(8, createCommandBlockItem(api, shop, item));
 
+        // kill any refresh task left over from a previous menu before starting a new one
+        onClose(uniqueId);
+
         final var menu = builder.build();
         final var context = new MenuContext(menu, shop);
         openMenus.put(uniqueId, context);
@@ -138,11 +141,11 @@ public final class ClientShopUI {
         menu.open(client);
 
         context.refreshTask = Bukkit.getScheduler().runTaskTimer((Slabby) api, () -> {
-            final var ctx = openMenus.get(uniqueId);
-            if (ctx == null) return;
-
+            final var ctx = context;
             final var p = Bukkit.getPlayer(uniqueId);
-            if (p == null || !p.isOnline()) {
+
+            // stop as soon as theyre not looking at this menu anymore, doesnt matter how they left it
+            if (p == null || p.getOpenInventory().getTopInventory().getHolder() != menu) {
                 onClose(uniqueId);
                 return;
             }
